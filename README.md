@@ -63,9 +63,9 @@ npm test
 
 Deploy: `vercel deploy --prod` with env `DATABASE_URL`, `BOT_TOKEN`, `WEBHOOK_SECRET`, `APP_URL`, `BOT_USERNAME`, then `npm run setup-bot` (sets the webhook, commands and menu button).
 
-## AI tools and process
+## Process
 
-Built with **Claude Code**, following the [Ponytail](https://github.com/DietrichGebert/ponytail) rules: write the least code that fully solves the task, but never cut validation, security or tests. Hence no framework, a single API file, and DB constraints instead of app-level locks wherever possible.
+Built following the [Ponytail](https://github.com/DietrichGebert/ponytail) rules: write the least code that fully solves the task, but never cut validation, security or tests. Hence no framework, a single API file, and DB constraints instead of app-level locks wherever possible.
 
 ## Product decisions
 
