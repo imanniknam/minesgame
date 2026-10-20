@@ -1,8 +1,8 @@
-# 💣 Mines — Telegram Mini App
+# ðŸ’£ Mines â€” Telegram Mini App
 
-Open tiles on a 3×3 board, dodge 2 hidden bombs, cash out whenever you like. Virtual coins only.
+Open tiles on a 3Ã—3 board, dodge 2 hidden bombs, cash out whenever you like. Virtual coins only.
 
-- **Bot:** [@MinegamePlus_bot](https://t.me/MinegamePlus_bot) → `/start` → **Play**
+- **Bot:** [@Plusgames_bot](https://t.me/Plusgames_bot) â†’ `/start` â†’ **Play**
 - **App:** https://mines-tma.vercel.app (only works inside Telegram; outside it shows an "Open in Telegram" screen)
 
 ## Features
@@ -10,15 +10,15 @@ Open tiles on a 3×3 board, dodge 2 hidden bombs, cash out whenever you like. Vi
 | Area | What's there |
 |---|---|
 | Telegram | `/start` button + menu button open the Mini App; user identified from signed `initData` (no sign-up); theme colors, haptics, expand |
-| Wallet | 1,000 coins on first open · bets 10/50/100 · live balance · every change written to an append-only `ledger` |
-| Game | 3×3, 2 bombs · multiplier ladder shown up front · cash out after the 1st safe tile · board cleared → auto cash-out at 34.20x |
+| Wallet | 1,000 coins on first open Â· bets 10/50/100 Â· live balance Â· every change written to an append-only `ledger` |
+| Game | 3Ã—3, 2 bombs Â· multiplier ladder shown up front Â· cash out after the 1st safe tile Â· board cleared â†’ auto cash-out at 34.20x |
 | History | Last 10 rounds: bet, safe tiles, final multiplier, net win/loss, time |
-| Bonus | 🎁 Daily +100 coins (24h cooldown) · 🏆 Leaderboard by total virtual profit · 🔒 Provably fair with an in-browser verifier |
+| Bonus | ðŸŽ Daily +100 coins (24h cooldown) Â· ðŸ† Leaderboard by total virtual profit Â· ðŸ”’ Provably fair with an in-browser verifier |
 
 ## Odds
 
 7 safe tiles of 9. Probability of surviving *k* picks: `P(k) = C(7,k) / C(9,k)`.
-Multiplier = `0.95 / P(k)`, floored to 2 decimals (5% house edge, RTP ≤ 95% at every step — unit tested).
+Multiplier = `0.95 / P(k)`, floored to 2 decimals (5% house edge, RTP â‰¤ 95% at every step â€” unit tested).
 
 | Safe tiles | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|
@@ -29,8 +29,8 @@ Computed in integer math (`lib/mines.js`), and balances are stored as integer ce
 ## Architecture
 
 ```
-Telegram ──/start──▶ POST /bot (webhook, secret-token checked) ──▶ sendMessage(web_app button)
-Mini App (public/, vanilla JS) ──Authorization: tma <initData>──▶ Express API (server.js) ──▶ Postgres (Neon)
+Telegram â”€â”€/startâ”€â”€â–¶ POST /bot (webhook, secret-token checked) â”€â”€â–¶ sendMessage(web_app button)
+Mini App (public/, vanilla JS) â”€â”€Authorization: tma <initData>â”€â”€â–¶ Express API (server.js) â”€â”€â–¶ Postgres (Neon)
 ```
 
 - **Vercel** runs `server.js` as one serverless function; `public/` is served from the CDN.
@@ -43,14 +43,14 @@ Mini App (public/, vanilla JS) ──Authorization: tma <initData>──▶ Expr
 |---|---|
 | Fake user / stealing someone's wallet | `initData` HMAC-SHA256 checked against the bot token on **every** request, with a timing-safe compare and a 24h freshness limit |
 | Seeing the bombs | Mines are generated server-side (`crypto.randomBytes`) and never sent until the round ends |
-| Tampering with balance or multiplier | Client sends only `{bet}` (whitelist 10/50/100) and `{cell}` (0–8); all math is done server-side |
-| Double spend (parallel bets) | Bet runs in one transaction with `SELECT … FOR UPDATE` on the user, plus a **partial unique index** `one_active_game(user_id) WHERE status='active'` as a DB-level backstop |
-| Double cash-out / reveal after the round ended | `SELECT … FOR UPDATE` on the active game; the first request moves it out of `active`, so later ones get `409` |
-| Double daily bonus | A single conditional `UPDATE … WHERE last_bonus_at <= now() - 24h` |
+| Tampering with balance or multiplier | Client sends only `{bet}` (whitelist 10/50/100) and `{cell}` (0â€“8); all math is done server-side |
+| Double spend (parallel bets) | Bet runs in one transaction with `SELECT â€¦ FOR UPDATE` on the user, plus a **partial unique index** `one_active_game(user_id) WHERE status='active'` as a DB-level backstop |
+| Double cash-out / reveal after the round ended | `SELECT â€¦ FOR UPDATE` on the active game; the first request moves it out of `active`, so later ones get `409` |
+| Double daily bonus | A single conditional `UPDATE â€¦ WHERE last_bonus_at <= now() - 24h` |
 | Refresh / disconnect mid-round | The round lives in the DB; `GET /api/state` returns it, and the app resyncs on focus and on `online` |
 | "Rigged board" claims | The SHA-256 of the seed is shown at bet time and the seed is revealed after; the in-app **Verify** recomputes the bombs |
 
-Tested (`npm test`) on PGlite, and on real Postgres via `TEST_DATABASE_URL`: parallel bets → exactly one; 6 parallel cash-outs → paid once; parallel bonus claims → one; forged or stale `initData` rejected.
+Tested (`npm test`) on PGlite, and on real Postgres via `TEST_DATABASE_URL`: parallel bets â†’ exactly one; 6 parallel cash-outs â†’ paid once; parallel bonus claims â†’ one; forged or stale `initData` rejected.
 
 ## Run locally
 
