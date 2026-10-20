@@ -52,7 +52,20 @@ Mini App (public/, vanilla JS modules) ──Authorization: tma <initData>──
 | Refresh / disconnect | Rounds live in the DB; the app reopens the unfinished game automatically; crash rounds settle on the server clock |
 | "Rigged" claims | `sha256(seed)` shown before play and the seed after; **Verify** recomputes the result in the browser |
 
-Tests (`npm test`, 19): math and RTP per game, uniform roulette, crash resolution, parallel bets/cash-outs/spins/bonus claims, replayed requests, referral rules, lazy crash settlement. They pass on in-memory PGlite and on real Postgres (`TEST_DATABASE_URL=… npm test`).
+**Tests**
+- `npm test` (27 tests, on in-memory PGlite or real Postgres via `TEST_DATABASE_URL`):
+  - odds and RTP per game, uniform roulette, crash resolution
+  - full-board Mines (34.20x) and perfect-run Poop (30.40x), cash-out after the crash point
+  - 30+ fuzzed payloads (never a 500, never charged)
+  - parallel bets, cash-outs, spins and bonus claims; replayed request ids; referrals
+  - a ledger invariant over every user: balance == Σ ledger, exact payouts, one win entry per won round
+- `npm run e2e` is a black-box suite against the **deployed** app:
+  - signs real Telegram `initData` and checks auth (forged, expired, other bot, dev header all rejected)
+  - recomputes every Mines, Crash, Roulette and Poop outcome from the revealed seed, independently of `lib/`
+  - runs concurrency races and checks the same accounting invariants in the production DB
+  - then deletes its test users
+
+  Run it with `BOT_TOKEN=… DATABASE_URL=… npm run e2e`.
 
 ## Run locally
 
