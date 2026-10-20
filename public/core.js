@@ -1,6 +1,9 @@
 // Shared client plumbing. The client never decides outcomes or balances; it renders server answers.
 export const tg = window.Telegram?.WebApp;
 export const $ = (sel, root = document) => root.querySelector(sel);
+// Signed launch data. Normally from the SDK; if the SDK failed to load, Telegram still passes it in the URL hash.
+// Either way the server verifies its HMAC, so reading it raw is safe.
+export const initData = tg?.initData || new URLSearchParams(location.hash.slice(1)).get('tgWebAppData') || '';
 const devUser = new URLSearchParams(location.search).get('dev'); // local testing only; ignored by the deployed server
 
 export const S = { user: null, config: null, bet: 10, serverOffset: 0 };
@@ -14,7 +17,7 @@ export const syncClock = t => { if (t) S.serverOffset = t - Date.now(); };
 
 export async function api(path, body) {
   const headers = { 'content-type': 'application/json' };
-  if (tg?.initData) headers.authorization = 'tma ' + tg.initData;
+  if (initData) headers.authorization = 'tma ' + initData;
   if (devUser) headers['x-dev-user'] = devUser;
   let r;
   try {

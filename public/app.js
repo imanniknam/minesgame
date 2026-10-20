@@ -1,4 +1,4 @@
-import { $, S, ago, api, esc, fmt, haptic, setBalance, tg, toast } from './core.js';
+import { $, S, ago, api, esc, fmt, haptic, initData, setBalance, tg, toast } from './core.js';
 import mines from './games/mines.js';
 import crash from './games/crash.js';
 import roulette from './games/roulette.js';
@@ -132,7 +132,7 @@ $('#screen').addEventListener('click', async e => {
   tg?.ready(); tg?.expand();
   try { tg?.setHeaderColor?.('secondary_bg_color'); tg?.disableVerticalSwipes?.(); } catch {}
   const params = new URLSearchParams(location.search);
-  if (!tg?.initData && !params.get('dev')) {
+  if (!initData && !params.get('dev')) {
     const cfg = await fetch('/config').then(r => r.json()).catch(() => ({}));
     if (cfg.bot) $('#botLink').href = `https://t.me/${cfg.bot}`;
     $('#gate').hidden = false; return;
