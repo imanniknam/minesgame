@@ -97,6 +97,24 @@ api.get('/history', async (req, res) => {
   res.json({ games: rows.map(view) });
 });
 
+// Wallet tab: the user's own ledger, newest first
+api.get('/wallet', async (req, res) => {
+  const { rows } = await req.db.query(
+    `SELECT l.id, l.kind, l.amount, l.balance_after, l.created_at, g.game
+     FROM ledger l LEFT JOIN games g ON g.id = l.game_id WHERE l.user_id=$1 ORDER BY l.id DESC LIMIT 20`, [req.uid]);
+  res.json({ items: rows.map(r => ({ id: r.id, kind: r.kind, game: r.game, amount: r.amount / CENTS, balance: r.balance_after / CENTS, at: r.created_at })) });
+});
+
+// Profile tab: stats derived from real rounds (XP = coins wagered)
+api.get('/profile', async (req, res) => {
+  const { rows: [s] } = await req.db.query(
+    `SELECT COUNT(*) AS rounds, COUNT(*) FILTER (WHERE status='cashed') AS wins,
+       COALESCE(SUM(payout - bet), 0) AS net, COALESCE(SUM(bet), 0) AS wagered,
+       COALESCE(MAX(mult_x100) FILTER (WHERE status='cashed'), 0) AS best
+     FROM games WHERE user_id=$1 AND status <> 'active'`, [req.uid]);
+  res.json({ rounds: Number(s.rounds), wins: Number(s.wins), net: Number(s.net) / CENTS, xp: Number(s.wagered) / CENTS, best: Number(s.best) / 100 });
+});
+
 api.get('/leaderboard', async (req, res) => {
   const { rows } = await req.db.query(
     `SELECT u.id, u.first_name AS name, SUM(g.payout - g.bet) AS profit, COUNT(*) AS games

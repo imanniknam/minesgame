@@ -1,25 +1,30 @@
-import { $, S, ago, api, esc, fmt, haptic, initData, setBalance, tg, toast } from './core.js';
+import { $, COIN, S, ago, api, esc, fmt, haptic, initData, setBalance, tg, toast } from './core.js';
 import mines from './games/mines.js';
 import crash from './games/crash.js';
 import roulette from './games/roulette.js';
 import poop from './games/poop.js';
 
 const GAMES = {
-  mines: { mount: mines, icon: '💣', name: 'Mines', tag: 'Dodge 2 bombs on a 3×3 board', top: 'up to 34.20x' },
-  crash: { mount: crash, icon: '🚀', name: 'Crash', tag: 'Cash out before the rocket blows', top: 'up to 1000x' },
-  roulette: { mount: roulette, icon: '🎡', name: 'Roulette', tag: 'European wheel · red, odd, numbers', top: 'up to 36x' },
-  poop: { mount: poop, icon: '💩', name: 'Poop', tag: '💩 or 😂 — 5 stages of 50/50', top: 'up to 30.40x' },
+  mines: { mount: mines, icon: '💎', name: 'Mines', title: 'Mines', sub: 'Find safe tiles. Avoid the mines.', tag: 'Risk & Strategy', max: '34.20x' },
+  crash: { mount: crash, icon: '🚀', name: 'Crash', title: 'Crash', sub: 'Cash out before it blows!', tag: 'High Multiplier', max: '1000x' },
+  roulette: { mount: roulette, icon: '🎡', name: 'Roulette', title: 'European Roulette', sub: 'Place your bet and spin the wheel.', tag: 'Classic & Elegant', max: '36x' },
+  poop: { mount: poop, icon: '💩', name: 'Poop', title: 'Poop', sub: 'The luckiest little poop!', tag: 'Fun & Crazy', max: '30.40x' },
 };
 const RLABEL = { red: '🔴 Red', black: '⚫ Black', odd: 'Odd', even: 'Even' };
+const KIND = { signup: ['🎉', 'Welcome bonus'], bonus: ['🎁', 'Daily bonus'], referral: ['🤝', 'Friend joined'] };
 
-let screen = null, mounted = null, activeGame = null, tab = 'games', histFilter = '';
+let screen = null, mounted = null, activeGame = null, histFilter = '', openSheet = '';
+
+// XP = coins wagered; level n needs 50·(n−1)² XP
+const level = xp => {
+  const lv = Math.floor(Math.sqrt(xp / 50)) + 1, lo = 50 * (lv - 1) ** 2, hi = 50 * lv ** 2;
+  return { lv, xp, hi, pct: Math.min(100, ((xp - lo) / (hi - lo)) * 100) };
+};
 
 async function loadState() {
   const s = await api('/state');
   S.user = { ...s.user, balance: S.user?.balance ?? null }; S.config = s.config;
   activeGame = s.game;
-  $('#name').textContent = s.user.name || 'Player';
-  $('#avatar').textContent = (s.user.name || 'P')[0].toUpperCase();
   setBalance(s.user.balance);
   return s;
 }
@@ -28,123 +33,204 @@ async function loadState() {
 function go(to) {
   mounted?.destroy(); mounted = null;
   screen = to;
-  const root = $('#screen');
+  const root = $('#screen'), inGame = to in GAMES, sub = inGame || to === 'top';
   root.innerHTML = '';
-  root.className = `screen-${to}`;
-  const inGame = to in GAMES;
-  $('#back').hidden = !inGame; $('#who').hidden = inGame;
-  $('#title').hidden = !inGame; $('#title').textContent = inGame ? `${GAMES[to].icon} ${GAMES[to].name}` : '';
-  if (tg?.BackButton) inGame ? tg.BackButton.show() : tg.BackButton.hide();
-  if (!inGame) return renderLobby();
-  const box = document.createElement('section'); box.className = 'game'; root.appendChild(box);
-  mounted = GAMES[to].mount(box, {
+  $('#back').hidden = !sub;
+  if (tg?.BackButton) sub ? tg.BackButton.show() : tg.BackButton.hide();
+  document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === (inGame ? 'home' : to === 'top' ? 'profile' : to)));
+  scrollTo(0, 0);
+  if (!inGame) return RENDER[to]();
+  const m = GAMES[to];
+  root.innerHTML = `<div class="ghead c-${to}"><h2>${m.title}</h2><p>${m.sub}</p></div><section class="game"></section>`;
+  mounted = m.mount($('.game', root), {
     initial: activeGame?.game === to ? activeGame : null,
     refresh: () => { activeGame = null; },
     resync: async () => { const s = await loadState(); return s.game?.game === to ? s.game : null; },
   });
-  scrollTo(0, 0);
 }
-const back = () => { haptic('impactOccurred', 'light'); loadState().catch(() => {}).finally(() => go('lobby')); };
+const back = () => { haptic('impactOccurred', 'light'); const to = screen === 'top' ? 'profile' : 'home'; loadState().catch(() => {}).finally(() => go(to)); };
 $('#back').onclick = back;
 tg?.BackButton?.onClick(back);
+$('#nav').onclick = e => {
+  const b = e.target.closest('[data-nav]');
+  if (!b || !S.user) return;
+  haptic('selectionChanged');
+  loadState().catch(() => {}).finally(() => go(b.dataset.nav));
+};
+$('#plus').onclick = () => S.user && go('wallet');
 
-// ---------- lobby ----------
-function renderLobby() {
-  const root = $('#screen');
-  const left = S.user.bonusAt - Date.now();
-  const bonus = left <= 0 ? `<button type="button" class="bonus" data-bonus>🎁 +${S.config.dailyBonus}</button>`
-    : `<button type="button" class="bonus" disabled>🎁 ${Math.floor(left / 3.6e6)}h ${Math.floor(left % 3.6e6 / 6e4)}m</button>`;
-  root.innerHTML = `
-    <nav class="tabs" role="tablist">
-      ${['games', 'history', 'top'].map(t => `<button role="tab" class="tab ${tab === t ? 'on' : ''}" data-tab="${t}">${{ games: 'Games', history: 'History', top: 'Top' }[t]}</button>`).join('')}
-      ${bonus}
-    </nav>
-    <div data-panel></div>`;
-  const panel = $('[data-panel]', root);
-  if (tab === 'games') {
-    panel.innerHTML = `
-      <div class="cards">${Object.entries(GAMES).map(([id, x]) => `
-        <button type="button" class="card card-${id}" data-go="${id}">
-          ${activeGame?.game === id ? '<span class="badge">▶ Resume</span>' : ''}
-          <span class="ic">${x.icon}</span><b>${x.name}</b><small>${x.tag}</small><em>${x.top}</em>
-        </button>`).join('')}</div>
-      ${S.config.bot ? `<button type="button" class="invite" data-invite>
-        <span>👥</span><div><b>Invite friends · +${S.config.referralBonus} 🪙 each</b><small>${S.user.invited} joined with your link</small></div><span>›</span></button>` : ''}
-      <p class="hint">Virtual coins only — no real money. Each game is provably fair.</p>`;
-  } else {
-    panel.innerHTML = tab === 'history'
-      ? `<div class="filters">${['', ...Object.keys(GAMES)].map(f => `<button type="button" class="chip sm ${histFilter === f ? 'on' : ''}" data-filter="${f}">${f ? GAMES[f].icon + ' ' + GAMES[f].name : 'All'}</button>`).join('')}</div><ul class="list" data-list><li class="empty">Loading…</li></ul>`
-      : `<p class="hint">Ranked by total virtual profit</p><ol class="list" data-list><li class="empty">Loading…</li></ol>`;
-    loadList(panel);
-  }
-}
+// ---------- shared bits ----------
+const bonusLeft = () => S.user.bonusAt - Date.now();
+const bonusLabel = () => { const l = bonusLeft(); return l <= 0 ? `+${S.config.dailyBonus}` : `${Math.floor(l / 3.6e6)}h ${Math.floor(l % 3.6e6 / 6e4)}m`; };
+const signed = n => `${n >= 0 ? '+' : '−'}${fmt(Math.abs(n))}`;
 
-function detail(g) {
-  if (g.game === 'mines') return `${g.safe} 💎 · ${g.multiplier.toFixed(2)}x`;
-  if (g.game === 'poop') return `${g.stage}/5 stages${g.won ? ` · ${g.multiplier.toFixed(2)}x` : ''}`;
-  if (g.game === 'crash') return `crashed ${g.crash.toFixed(2)}x${g.won ? ` · out at ${g.multiplier.toFixed(2)}x` : ''}`;
-  const dot = g.color === 'red' ? '🔴' : g.color === 'black' ? '⚫' : '🟢';
-  return `${g.type === 'number' ? '#' + g.pick : RLABEL[g.type]} · landed ${g.number} ${dot}`;
-}
-
-async function loadList(panel) {
-  const list = $('[data-list]', panel);
+async function claimBonus() {
   try {
-    if (tab === 'history') {
-      const { games } = await api('/history' + (histFilter ? `?game=${histFilter}` : ''));
-      list.innerHTML = games.length ? games.map(g => `<li><div><b>${GAMES[g.game].icon} ${g.won ? 'Won' : 'Lost'}</b> · bet ${fmt(g.bet)}
-        <div class="sub">${detail(g)} · ${ago(g.createdAt)}</div></div>
-        <span class="${g.net >= 0 ? 'pos' : 'neg'}">${g.net >= 0 ? '+' : '−'}${fmt(Math.abs(g.net))}</span></li>`).join('')
-        : '<li class="empty">No rounds yet — go play!</li>';
-    } else {
-      const { top } = await api('/leaderboard');
-      list.innerHTML = top.length ? top.map((p, i) => `<li class="${p.me ? 'me' : ''}"><div><b>${['🥇', '🥈', '🥉'][i] ?? i + 1 + '.'} ${esc(p.name)}</b><div class="sub">${p.games} rounds</div></div>
-        <span class="${p.profit >= 0 ? 'pos' : 'neg'}">${p.profit >= 0 ? '+' : '−'}${fmt(Math.abs(p.profit))}</span></li>`).join('')
-        : '<li class="empty">No players yet</li>';
-    }
-  } catch (e) { list.innerHTML = `<li class="empty">${esc(e.message)}</li>`; }
+    const r = await api('/bonus', {});
+    setBalance(r.balance); S.user.bonusAt = r.bonusAt;
+    haptic('notificationOccurred', 'success'); toast(`+${S.config.dailyBonus} coins! Come back tomorrow`);
+  } catch (e) { toast(e.message); await loadState().catch(() => {}); }
+  RENDER[screen]?.();
+}
+function invite() {
+  if (!S.config.bot) return toast('Invites are not available yet');
+  const link = `https://t.me/${S.config.bot}?start=ref_${S.user.id}`;
+  const share = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('🎮 Play Mines, Crash, Roulette & Poop with free coins!')}`;
+  if (tg?.openTelegramLink) tg.openTelegramLink(share);
+  else navigator.clipboard?.writeText(link).then(() => toast('Invite link copied'));
 }
 
-$('#screen').addEventListener('click', async e => {
-  if (screen !== 'lobby') return;
-  const t = e.target.closest('[data-tab]'), f = e.target.closest('[data-filter]'), card = e.target.closest('[data-go]');
-  if (t) { tab = t.dataset.tab; haptic('selectionChanged'); return renderLobby(); }
-  if (f) { histFilter = f.dataset.filter; return renderLobby(); }
-  if (card) { haptic('impactOccurred', 'light'); return go(card.dataset.go); }
-  if (e.target.closest('[data-invite]')) {
-    const link = `https://t.me/${S.config.bot}?start=ref_${S.user.id}`;
-    const share = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('🎮 Play Mines, Crash, Roulette & Poop with free coins!')}`;
-    return tg?.openTelegramLink ? tg.openTelegramLink(share) : navigator.clipboard?.writeText(link).then(() => toast('Invite link copied'));
-  }
-  const b = e.target.closest('[data-bonus]');
-  if (b) {
-    b.disabled = true;
+function gameRow(g) {
+  const m = GAMES[g.game];
+  const detail = g.game === 'mines' ? `${g.safe} 💎 · ${g.multiplier.toFixed(2)}x`
+    : g.game === 'poop' ? `${g.stage}/5 stages${g.won ? ` · ${g.multiplier.toFixed(2)}x` : ''}`
+    : g.game === 'crash' ? `crashed ${g.crash.toFixed(2)}x${g.won ? ` · out ${g.multiplier.toFixed(2)}x` : ''}`
+    : `${g.type === 'number' ? '#' + g.pick : RLABEL[g.type]} · landed ${g.number}`;
+  return `<li class="row panel"><span class="gi c-${g.game}">${m.icon}</span>
+    <div class="mid"><b>${m.name}</b><small>${detail} · bet ${fmt(g.bet)}</small></div>
+    <div class="end"><span class="${g.won ? 'pos' : 'neg'}">${g.won ? 'Win' : 'Lose'} ${signed(g.net)}</span><small>${ago(g.createdAt)}</small></div></li>`;
+}
+const listError = e => { const l = $('[data-list]'); if (l) l.innerHTML = `<li class="empty">${esc(e.message)}</li>`; };
+
+// ---------- screens ----------
+const RENDER = {
+  home() {
+    const h = new Date().getHours(), greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+    $('#screen').innerHTML = `
+      <div class="hello panel"><span class="avatar">${esc((S.user.name || 'P')[0].toUpperCase())}</span>
+        <div><small>${greet},</small><b>${esc(S.user.name || 'Player')}!</b></div>
+        <div class="lvl" data-lvl>Lv. …<i></i></div></div>
+      <div class="quick">
+        <button type="button" class="panel" data-act="bonus" ${bonusLeft() > 0 ? 'disabled' : ''}><span class="ic">🎁</span>Daily ${bonusLabel()}</button>
+        <button type="button" class="panel" data-act="invite"><span class="ic">🤝</span>Invite +${S.config.referralBonus}</button>
+        <button type="button" class="panel" data-act="top"><span class="ic">🏆</span>Leaderboard</button>
+      </div>
+      <div class="sec-title">Popular Games</div>
+      <div class="cards">${Object.entries(GAMES).map(([id, m]) => `
+        <button type="button" class="card c-${id}" data-go="${id}">
+          <span class="max">up to ${m.max}</span>${activeGame?.game === id ? '<span class="badge">▶ Resume</span>' : ''}
+          <div class="art">${m.icon}</div><div class="txt"><b>${m.name}</b><small>${m.tag}</small></div>
+        </button>`).join('')}</div>
+      <p class="foot">Virtual coins only — no real money. Every round is provably fair.</p>`;
+    api('/profile').then(p => {
+      const L = level(p.xp), el = $('[data-lvl]');
+      if (el) { el.innerHTML = `Lv. ${L.lv}<i></i>`; el.style.setProperty('--p', L.pct + '%'); }
+    }).catch(() => {});
+  },
+
+  async wallet() {
+    $('#screen').innerHTML = `
+      <div class="sec-title" style="margin-top:4px">Wallet</div>
+      <div class="balance-card panel neon"><small>Your balance</small>
+        <div class="big">${COIN}<span>${fmt(S.user.balance)}</span></div>
+        <div class="acts">
+          <button type="button" class="btn-green" data-act="bonus" ${bonusLeft() > 0 ? 'disabled' : ''}>🎁 Daily ${bonusLabel()}</button>
+          <button type="button" class="btn2" data-act="invite">🤝 Invite +${S.config.referralBonus}</button>
+        </div>
+        <p class="note">Virtual coins only — no deposits or withdrawals.</p></div>
+      <div class="sec-title">Transactions</div>
+      <ul class="list" data-list><li class="empty">Loading…</li></ul>`;
     try {
-      const r = await api('/bonus', {});
-      setBalance(r.balance); S.user.bonusAt = r.bonusAt; haptic('notificationOccurred', 'success'); toast(`+${S.config.dailyBonus} coins! Come back tomorrow`);
-    } catch (err) { toast(err.message); await loadState().catch(() => {}); }
-    renderLobby();
-  }
+      const { items } = await api('/wallet');
+      $('[data-list]').innerHTML = items.map(t => {
+        const [icon, label] = KIND[t.kind] ?? [GAMES[t.game]?.icon ?? '🎮', `${GAMES[t.game]?.name ?? 'Game'} · ${t.kind === 'win' ? 'win' : 'bet'}`];
+        return `<li class="row panel"><span class="gi c-${t.game ?? 'poop'}">${icon}</span>
+          <div class="mid"><b>${label}</b><small>${ago(t.at)}</small></div>
+          <div class="end"><span class="${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount)}</span><small>bal ${fmt(t.balance)}</small></div></li>`;
+      }).join('') || '<li class="empty">No transactions yet</li>';
+    } catch (e) { listError(e); }
+  },
+
+  async history() {
+    $('#screen').innerHTML = `
+      <div class="sec-title" style="margin-top:4px">Game History</div>
+      <div class="filters">${['', ...Object.keys(GAMES)].map(f => `<button type="button" class="pill ${histFilter === f ? 'on' : ''}" data-filter="${f}">${f ? GAMES[f].name : 'All'}</button>`).join('')}</div>
+      <ul class="list" data-list><li class="empty">Loading…</li></ul>`;
+    try {
+      const { games } = await api('/history' + (histFilter ? `?game=${histFilter}` : ''));
+      $('[data-list]').innerHTML = games.map(gameRow).join('') || '<li class="empty">No rounds yet — go play!</li>';
+    } catch (e) { listError(e); }
+  },
+
+  async profile() {
+    const sheet = {
+      fair: `<p>Every round's result is fixed by a secret seed <b>before</b> you play. You see its SHA-256 fingerprint up front; when the round ends the seed is revealed.</p><p>Open "Provably fair" under any game and tap <b>Verify</b>: your phone recomputes the bombs, crash point, wheel number or answers from the seed.</p>`,
+      help: `<p>💎 <b>Mines</b> — 3×3 board, 2 bombs. Each safe tile raises the multiplier; cash out any time.</p><p>🚀 <b>Crash</b> — the multiplier climbs from 1.00x. Cash out before it crashes, or set auto cash-out.</p><p>🎡 <b>Roulette</b> — red/black or odd/even pay 2x, a single number pays 36x. Zero loses outside bets.</p><p>💩 <b>Poop</b> — pick 💩 or 😂, 50/50 per stage, up to 5 stages (30.40x).</p><p>Bets are 10, 50 or 100 coins. Coins are virtual and have no cash value.</p>`,
+    };
+    const item = (k, icon, label) => `<button type="button" class="panel" data-sheet="${k}"><span>${icon}</span>${label}<span>${openSheet === k ? '⌄' : '›'}</span></button>
+      ${openSheet === k ? `<div class="panel sheet" style="padding:4px 14px">${sheet[k]}</div>` : ''}`;
+    $('#screen').innerHTML = `
+      <div class="sec-title" style="margin-top:4px">Profile</div>
+      <div class="player panel neon"><span class="avatar">${esc((S.user.name || 'P')[0].toUpperCase())}</span>
+        <div class="info"><b>${esc(S.user.name || 'Player')}</b><small>ID ${S.user.id}</small>
+          <div data-xp><span class="lv">Lv. …</span><div class="xpbar"><i style="width:0"></i></div></div></div></div>
+      <div class="stats" data-stats>${['Rounds', 'Win rate', 'Net', 'Best'].map(l => `<div class="panel"><b>…</b><small>${l}</small></div>`).join('')}</div>
+      <div class="menu">
+        <button type="button" class="panel" data-act="top"><span>🏆</span>Leaderboard<span>›</span></button>
+        <button type="button" class="panel" data-act="invite"><span>🤝</span>Invite friends · ${S.user.invited} joined<span>›</span></button>
+        ${item('fair', '🔒', 'Provably fair')}
+        ${item('help', '❓', 'How to play')}
+      </div>`;
+    try {
+      const p = await api('/profile'), L = level(p.xp);
+      $('[data-xp]').innerHTML = `<span class="lv">Lv. ${L.lv}</span><div class="xpbar"><i style="width:${L.pct}%"></i></div><small>${fmt(L.xp)} / ${fmt(L.hi)} XP</small>`;
+      $('[data-stats]').innerHTML = [
+        [p.rounds, 'Rounds'], [p.rounds ? Math.round((p.wins / p.rounds) * 100) + '%' : '—', 'Win rate'],
+        [`<span class="${p.net >= 0 ? 'pos' : 'neg'}">${signed(p.net)}</span>`, 'Net'], [p.best ? p.best.toFixed(2) + 'x' : '—', 'Best'],
+      ].map(([v, l]) => `<div class="panel"><b>${v}</b><small>${l}</small></div>`).join('');
+    } catch {}
+  },
+
+  async top() {
+    $('#screen').innerHTML = `<div class="sec-title" style="margin-top:4px">🏆 Leaderboard <small class="muted">by virtual profit</small></div><ol class="list" data-list><li class="empty">Loading…</li></ol>`;
+    try {
+      const { top } = await api('/leaderboard');
+      $('[data-list]').innerHTML = top.map((p, i) => `<li class="row panel ${p.me ? 'me' : ''}"><span class="gi">${['🥇', '🥈', '🥉'][i] ?? i + 1}</span>
+        <div class="mid"><b>${esc(p.name)}${p.me ? ' (you)' : ''}</b><small>${p.games} rounds</small></div>
+        <div class="end"><span class="${p.profit >= 0 ? 'pos' : 'neg'}">${signed(p.profit)}</span></div></li>`).join('') || '<li class="empty">No players yet</li>';
+    } catch (e) { listError(e); }
+  },
+};
+
+$('#screen').addEventListener('click', e => {
+  if (screen in GAMES) return; // game modules handle their own clicks
+  const card = e.target.closest('[data-go]'), act = e.target.closest('[data-act]'), f = e.target.closest('[data-filter]'), sh = e.target.closest('[data-sheet]');
+  if (card) { haptic('impactOccurred', 'light'); return go(card.dataset.go); }
+  if (f) { histFilter = f.dataset.filter; haptic('selectionChanged'); return RENDER.history(); }
+  if (sh) { openSheet = openSheet === sh.dataset.sheet ? '' : sh.dataset.sheet; return RENDER.profile(); }
+  if (!act || act.disabled) return;
+  if (act.dataset.act === 'bonus') { act.disabled = true; return claimBonus(); }
+  if (act.dataset.act === 'invite') return invite();
+  if (act.dataset.act === 'top') return go('top');
 });
 
 // ---------- boot ----------
+function hideSplash() { const s = $('#splash'); s.classList.add('out'); setTimeout(() => (s.hidden = true), 450); }
+const seen = () => { try { return localStorage.getItem('pg_seen') === '1'; } catch { return true; } };
+
 (async function boot() {
   tg?.ready(); tg?.expand();
-  try { tg?.setHeaderColor?.('secondary_bg_color'); tg?.disableVerticalSwipes?.(); } catch {}
+  try { tg?.setHeaderColor?.('#080812'); tg?.setBackgroundColor?.('#080812'); tg?.disableVerticalSwipes?.(); } catch {}
   const params = new URLSearchParams(location.search);
   if (!initData && !params.get('dev')) {
     const cfg = await fetch('/config').then(r => r.json()).catch(() => ({}));
     if (cfg.bot) $('#botLink').href = `https://t.me/${cfg.bot}`;
-    $('#gate').hidden = false; return;
+    hideSplash(); $('#gate').hidden = false; return;
   }
+  const minSplash = new Promise(r => setTimeout(r, 700));
   try {
     await loadState();
     // an unfinished round wins over the deep link: the player resumes it after a refresh/disconnect
     const want = activeGame?.game ?? params.get('game');
-    go(want in GAMES ? want : 'lobby');
+    go(want in GAMES ? want : 'home');
   } catch (e) { toast(e.message); }
-  setInterval(() => { if (screen === 'lobby' && tab === 'games') renderLobby(); }, 60000);
+  setInterval(() => { if (screen === 'home') RENDER.home(); }, 60000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && screen === 'lobby') loadState().then(renderLobby).catch(() => {});
+    if (!document.hidden && S.user && !(screen in GAMES)) loadState().then(() => RENDER[screen]?.()).catch(() => {});
   });
+  await minSplash;
+  // first visit: the splash doubles as a welcome screen; afterwards it's just a loader
+  if (seen() || activeGame || !S.user) return hideSplash();
+  $('#splashAct').innerHTML = '<button type="button" class="cta inline" id="start">🎮 START PLAYING</button>';
+  $('#start').onclick = () => { try { localStorage.setItem('pg_seen', '1'); } catch {} haptic('impactOccurred', 'medium'); hideSplash(); };
 })();

@@ -10,6 +10,7 @@ export const S = { user: null, config: null, bet: 10, serverOffset: 0 };
 
 export const haptic = (t, k) => { try { tg?.HapticFeedback?.[t]?.(k); } catch {} };
 export const rid = () => crypto.randomUUID?.() ?? `r${Date.now()}${Math.random().toString(36).slice(2)}`;
+export const COIN = '<span class="coin">C</span>';
 export const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 export const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 export const serverNow = () => Date.now() + S.serverOffset;
@@ -46,7 +47,7 @@ export function setBalance(b) {
 
 // Bet chips 10 / 50 / 100, shared by every game.
 export function betChips(disabled) {
-  return `<div class="bets" role="radiogroup" aria-label="Bet amount">${S.config.bets.map(v =>
+  return `<div class="betbox panel" role="radiogroup" aria-label="Bet amount"><label>Bet amount<b>${COIN}${S.bet}</b></label>${S.config.bets.map(v =>
     `<button type="button" class="chip" role="radio" aria-checked="${v === S.bet}" data-bet="${v}" ${disabled ? 'disabled' : ''}>${v}</button>`).join('')}</div>`;
 }
 export function bindChips(root, onChange) {
@@ -107,7 +108,7 @@ export async function verify(g) {
 
 export function fairBox(g) {
   const over = g && g.status !== 'active';
-  return `<details class="fair"><summary>🔒 Provably fair</summary>
+  return `<details class="fair panel"><summary>🔒 Provably fair</summary>
     <p>The outcome is fixed by a secret seed before you play. You see its SHA-256 now; the seed is revealed after the round so you can check nothing changed.</p>
     <p class="mono">Hash: ${g?.seedHash ?? '—'}</p>
     ${over ? `<p class="mono">Seed: ${g.seed}</p><button type="button" class="ghost" data-verify>Verify last round</button><p data-verify-out></p>` : ''}

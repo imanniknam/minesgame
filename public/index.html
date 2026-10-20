@@ -3,30 +3,53 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#080812">
 <title>Plus Games</title>
 <!-- self-hosted copy of https://telegram.org/js/telegram-web-app.js: telegram.org is filtered in some countries
      (e.g. Iran) even when the Telegram app itself works through a proxy, which left players stuck outside the app -->
 <script src="telegram-web-app.js"></script>
+<link rel="preload" href="fonts/poppins-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top">
   <button type="button" class="back" id="back" aria-label="Back to games" hidden>‹</button>
-  <div class="who" id="who"><span class="avatar" id="avatar">?</span><span id="name">…</span></div>
-  <div class="title" id="title" hidden></div>
-  <div class="wallet" aria-live="polite"><span class="coin">🪙</span><b id="balance">—</b></div>
+  <span class="logo" aria-label="Plus Games">P+</span>
+  <div class="wallet" aria-live="polite">
+    <span class="coin">C</span><b id="balance">—</b>
+    <button type="button" class="plus" id="plus" aria-label="Get coins">+</button>
+  </div>
 </header>
 
 <main id="screen"></main>
 
+<nav class="nav" id="nav" aria-label="Main">
+  <button type="button" data-nav="home" class="on">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="11" rx="5"/><path d="M7.5 10.5v4M5.5 12.5h4"/><circle cx="15.5" cy="11.5" r=".9" fill="currentColor"/><circle cx="17.5" cy="13.8" r=".9" fill="currentColor"/></svg>Games</button>
+  <button type="button" data-nav="wallet">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="14" rx="3"/><path d="M3 9.5h18M16 14.5h2"/></svg>Wallet</button>
+  <button type="button" data-nav="history">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>History</button>
+  <button type="button" data-nav="profile">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profile</button>
+</nav>
+
 <div class="toast" id="toast" role="alert" hidden></div>
+
+<section class="splash" id="splash" aria-label="Loading">
+  <div class="brand"><span class="mark">P+</span><div><b>PLUS</b><small>PLAY · WIN · REPEAT</small></div></div>
+  <h1>YOUR FAVOURITE<br>GAMES, <span>NOW IN TELEGRAM</span></h1>
+  <p>Mines, Crash, Roulette, Poop and more.<br>All in one place. Fast. Fair. Exciting.</p>
+  <div id="splashAct"><div class="loader" aria-label="Loading"></div></div>
+  <div class="deco" aria-hidden="true">🚀</div>
+</section>
 
 <div class="gate" id="gate" hidden>
   <div>
-    <div class="bigicon">🎮</div>
-    <h1>Plus Games</h1>
-    <p>Mines · Crash · Roulette · Poop<br>These games run inside Telegram.</p>
-    <a class="cta" id="botLink" href="#">Open in Telegram</a>
+    <span class="brand" style="justify-content:center"><span class="mark">P+</span></span>
+    <h2>Plus Games</h2>
+    <p class="muted">Mines · Crash · Roulette · Poop<br>These games run inside Telegram.</p>
+    <a class="cta inline" id="botLink" href="#">Open in Telegram</a>
   </div>
 </div>
 

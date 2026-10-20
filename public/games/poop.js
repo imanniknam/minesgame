@@ -1,4 +1,4 @@
-import { S, api, betChips, bindChips, bindFair, fairBox, fmt, haptic, makeAct, rid, setBalance } from '../core.js';
+import { COIN, S, api, betChips, bindChips, bindFair, fairBox, fmt, haptic, makeAct, rid, setBalance } from '../core.js';
 
 const ICON = ['💩', '😂'], NAME = ['Poop', 'Laugh'];
 
@@ -11,13 +11,14 @@ export default function mount(root, { initial, refresh, resync }) {
     const active = g?.status === 'active', stage = g?.stage ?? 0;
     const status = !g ? 'Guess 💩 or 😂 — 50/50 each stage, up to 5 stages'
       : active ? (stage ? `Stage ${stage}/${cfg.stages} cleared · ${g.multiplier.toFixed(2)}x · next <b>${g.next.toFixed(2)}x</b>` : `Stage 1/${cfg.stages} · win pays <b>${g.next.toFixed(2)}x</b>`)
-      : g.won ? `<span class="win">+${fmt(g.net)} 🪙 at ${g.multiplier.toFixed(2)}x${stage === cfg.stages ? ' · perfect run!' : ''}</span>`
-      : `<span class="lose">It was ${ICON[g.answers[stage]]}! −${fmt(g.bet)} 🪙</span>`;
+      : g.won ? `<span class="win">+${fmt(g.net)}${COIN} at ${g.multiplier.toFixed(2)}x${stage === cfg.stages ? ' · perfect run!' : ''}</span>`
+      : `<span class="lose">It was ${ICON[g.answers[stage]]}! −${fmt(g.bet)}${COIN}</span>`;
     const cta = active && stage ? [`Cash out ${fmt(g.cashout)}`, 'cash', act.busy]
       : active ? ['Pick 💩 or 😂', '', true]
-      : [`${g ? 'Play again' : 'Bet'} · ${S.bet} 🪙`, '', act.busy || S.user.balance < S.bet];
+      : [`${g ? 'Play again' : 'Bet'} · ${S.bet}${COIN}`, '', act.busy || S.user.balance < S.bet];
     root.innerHTML = `
       <div class="ladder">${cfg.ladder.map((m, i) => `<div class="step ${active && i < stage ? 'done' : ''} ${active && i === stage ? 'next' : ''}"><small>Stage ${i + 1}</small><b>${m.toFixed(2)}x</b></div>`).join('')}</div>
+      <div class="poop-art" aria-hidden="true"><span>${g && !active ? (g.won ? '😎' : '🤢') : '💩'}</span></div>
       <div class="status" aria-live="polite">${status}</div>
       <div class="trail">${(g?.answers ?? []).map((a, i) => `<span class="${g.picks[i] === a ? 'ok' : 'bad'}">${ICON[g.picks[i]]}</span>`).join('') || '&nbsp;'}</div>
       <div class="duo">${[0, 1].map(c => `

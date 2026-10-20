@@ -1,4 +1,4 @@
-import { S, api, betChips, bindChips, bindFair, fairBox, fmt, haptic, makeAct, rid, serverNow, setBalance } from '../core.js';
+import { COIN, S, api, betChips, bindChips, bindFair, fairBox, fmt, haptic, makeAct, rid, serverNow, setBalance } from '../core.js';
 
 // The client only animates m(t) = e^(k·t) on the server clock. It never knows the crash point:
 // it learns the outcome by polling /crash/status, and cash-outs are priced by the server's clock.
@@ -33,7 +33,7 @@ export default function mount(root, { initial, refresh, resync }) {
     for (const v of [1.5, 2, 3, 5, 10, 20, 50, 100].filter(v => v < yMax)) { ctx2.beginPath(); ctx2.moveTo(0, Y(v)); ctx2.lineTo(w, Y(v)); ctx2.stroke(); ctx2.fillText(v + 'x', 4, Y(v) - 3); }
     ctx2.beginPath(); ctx2.moveTo(X(0), Y(1));
     for (let i = 1; i <= 60; i++) { const t = tEnd * i / 60; ctx2.lineTo(X(t), Y(Math.exp(K * t))); }
-    ctx2.strokeStyle = color; ctx2.lineWidth = 4; ctx2.stroke();
+    ctx2.strokeStyle = color; ctx2.lineWidth = 4; ctx2.shadowColor = color; ctx2.shadowBlur = 14; ctx2.stroke(); ctx2.shadowBlur = 0;
     ctx2.lineTo(X(tEnd), Y(1)); ctx2.closePath();
     const grad = ctx2.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, color + '55'); grad.addColorStop(1, color + '00');
     ctx2.fillStyle = grad; ctx2.fill();
@@ -53,21 +53,21 @@ export default function mount(root, { initial, refresh, resync }) {
     root.querySelector('.sky').dataset.phase = p;
     if (p === 'starting') {
       multEl.textContent = '1.00x'; subEl.textContent = `Lift-off in ${((g.startsAt - serverNow()) / 1000).toFixed(1)}s`;
-      draw(0, 1.0001, '#fbbf24');
+      draw(0, 1.0001, '#a855f7');
     } else if (p === 'running') {
       const m = multAt(serverNow() - g.startsAt);
       multEl.textContent = m.toFixed(2) + 'x';
       subEl.textContent = g.auto ? `Auto cash-out at ${g.auto.toFixed(2)}x` : '';
       const btn = controls.querySelector('[data-cta]');
       if (btn && !act.busy) btn.textContent = `Cash out ${fmt(Math.floor(g.bet * m * 100) / 100)}`;
-      draw(0, m, '#22c55e');
+      draw(0, m, '#ec4899');
     } else if (p === 'crashed' || p === 'cashed') {
       multEl.textContent = (p === 'cashed' ? g.multiplier : g.crash).toFixed(2) + 'x';
-      subEl.innerHTML = p === 'cashed' ? `<span class="win">+${fmt(g.net)} 🪙</span> · crashed at ${g.crash.toFixed(2)}x` : `<span class="lose">−${fmt(g.bet)} 🪙</span>`;
+      subEl.innerHTML = p === 'cashed' ? `<span class="win">+${fmt(g.net)}${COIN}</span> · crashed at ${g.crash.toFixed(2)}x` : `<span class="lose">−${fmt(g.bet)}${COIN}</span>`;
       draw(p === 'cashed' ? g.multiplier : 0, g.crash, p === 'cashed' ? '#22c55e' : '#ef4444');
     } else {
       multEl.textContent = '1.00x'; subEl.textContent = 'Place a bet — cash out before it crashes';
-      draw(0, 1.0001, '#8b96b0');
+      draw(0, 1.0001, '#64748b');
     }
     if (active()) raf = requestAnimationFrame(frame);
   }
@@ -75,10 +75,11 @@ export default function mount(root, { initial, refresh, resync }) {
   function renderControls() {
     const p = phase(), live = active();
     const cta = p === 'running' ? ['Cash out', 'cash', act.busy] : p === 'starting' ? ['Starting…', '', true]
-      : [`${g ? 'Play again' : 'Bet'} · ${S.bet} 🪙`, '', act.busy || S.user.balance < S.bet];
+      : [`${g ? 'Play again' : 'Bet'} · ${S.bet}${COIN}`, '', act.busy || S.user.balance < S.bet];
     controls.innerHTML = `
-      <label class="auto"><input type="checkbox" data-auto ${auto.on ? 'checked' : ''} ${live ? 'disabled' : ''}> Auto cash-out at
-        <input type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" value="${auto.x}" data-autox ${live || !auto.on ? 'disabled' : ''}>x</label>
+      <div class="auto panel"><span class="grow">Auto cash-out</span>
+        <input type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" value="${auto.x}" data-autox aria-label="Auto cash-out multiplier" ${live || !auto.on ? 'disabled' : ''}>x
+        <label class="switch"><input type="checkbox" data-auto aria-label="Enable auto cash-out" ${auto.on ? 'checked' : ''} ${live ? 'disabled' : ''}><i></i></label></div>
       ${betChips(live || act.busy)}
       <button type="button" class="cta ${cta[1]}" data-cta ${cta[2] ? 'disabled' : ''}>${cta[0]}</button>
       ${fairBox(g)}`;

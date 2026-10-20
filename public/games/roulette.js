@@ -1,4 +1,4 @@
-import { S, api, betChips, bindChips, bindFair, fairBox, fmt, haptic, makeAct, rid, setBalance } from '../core.js';
+import { COIN, S, api, betChips, bindChips, bindFair, fairBox, fmt, haptic, makeAct, rid, setBalance } from '../core.js';
 
 // European wheel order, clockwise from 0
 const ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
@@ -14,7 +14,7 @@ function wheelSvg(reds) {
     return `<path d="M${x0},${y0} A${R},${R} 0 0 1 ${x1},${y1} L${x2},${y2} A${r0},${r0} 0 0 0 ${x3},${y3} Z" fill="${fill}" stroke="#d4af37" stroke-width=".6"/>
       <text x="${tx}" y="${ty}" transform="rotate(${i * STEP} ${tx} ${ty})" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="700" fill="#fff">${n}</text>`;
   }).join('');
-  return `<svg viewBox="0 0 300 300" aria-hidden="true">${slices}<circle cx="150" cy="150" r="${r0}" fill="#1f2a44" stroke="#d4af37" stroke-width="3"/></svg>`;
+  return `<svg viewBox="0 0 300 300" aria-hidden="true">${slices}<circle cx="150" cy="150" r="${r0}" fill="#0b0b1e" stroke="#a855f7" stroke-width="3"/></svg>`;
 }
 
 export default function mount(root, { refresh, resync }) {
@@ -32,8 +32,8 @@ export default function mount(root, { refresh, resync }) {
     const spinning = phase === 'spinning';
     const status = phase === 'waiting' ? 'Waiting · pick a bet and spin'
       : spinning ? 'Spinning…'
-      : g.won ? `<span class="win">${g.number} ${colorDot(g.number) === 'red' ? '🔴' : colorDot(g.number) === 'black' ? '⚫' : '🟢'} · +${fmt(g.net)} 🪙</span>`
-      : `<span class="lose">${g.number} ${colorDot(g.number) === 'red' ? '🔴' : colorDot(g.number) === 'black' ? '⚫' : '🟢'} · −${fmt(g.bet)} 🪙</span>`;
+      : g.won ? `<span class="win">${g.number} ${colorDot(g.number) === 'red' ? '🔴' : colorDot(g.number) === 'black' ? '⚫' : '🟢'} · +${fmt(g.net)}${COIN}</span>`
+      : `<span class="lose">${g.number} ${colorDot(g.number) === 'red' ? '🔴' : colorDot(g.number) === 'black' ? '⚫' : '🟢'} · −${fmt(g.bet)}${COIN}</span>`;
     const off = spinning || act.busy;
     controls.innerHTML = `
       <div class="status" aria-live="polite"><small class="phase">${phase === 'result' ? 'Result' : spinning ? 'Spinning' : 'Waiting'}</small>${status}</div>
@@ -41,7 +41,7 @@ export default function mount(root, { refresh, resync }) {
         <button type="button" class="type num ${type === 'number' ? 'on' : ''}" data-type="number" ${off ? 'disabled' : ''}>#${type === 'number' ? number : ''} Number<small>${payouts.number}x</small></button></div>
       ${showNums ? `<div class="numgrid">${[...Array(37).keys()].map(n => `<button type="button" class="n ${colorDot(n)} ${type === 'number' && number === n ? 'on' : ''}" data-num="${n}" ${off ? 'disabled' : ''}>${n}</button>`).join('')}</div>` : ''}
       ${betChips(off)}
-      <button type="button" class="cta" data-cta ${off || S.user.balance < S.bet ? 'disabled' : ''}>${spinning ? 'Spinning…' : `Spin · ${S.bet} 🪙 on ${type === 'number' ? `#${number}` : LABEL[type]}`}</button>
+      <button type="button" class="cta" data-cta ${off || S.user.balance < S.bet ? 'disabled' : ''}>${spinning ? 'Spinning…' : `Spin · ${S.bet}${COIN} on ${type === 'number' ? `#${number}` : LABEL[type]}`}</button>
       ${fairBox(phase === 'result' ? g : null)}`;
   }
 

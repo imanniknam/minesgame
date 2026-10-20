@@ -177,6 +177,18 @@ test('crash: round ends on the server even if the client disappears (auto cash-o
   else { assert.equal(g.won, false); assert.equal(s.user.balance, 950); }
 });
 
+test('wallet ledger and profile stats reflect real rounds', async () => {
+  const c = client();
+  const spin = await c('POST', '/roulette/spin', { bet: 50, type: 'odd' });
+  const w = await c('GET', '/wallet');
+  assert.deepEqual(w.items.map(i => i.kind).slice(-2), ['bet', 'signup']);
+  assert.equal(w.items[0].balance, spin.balance);
+  assert.ok(w.items.some(i => i.kind === 'bet' && i.amount === -50 && i.game === 'roulette'));
+  const p = await c('GET', '/profile');
+  assert.deepEqual([p.rounds, p.xp, p.wins], [1, 50, spin.game.won ? 1 : 0]);
+  assert.equal(p.net, spin.game.net);
+});
+
 test('daily bonus once per 24h under parallel claims', async () => {
   const c = client();
   const rs = await Promise.all(Array.from({ length: 5 }, () => c('POST', '/bonus')));
