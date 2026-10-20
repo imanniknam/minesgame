@@ -1,0 +1,20 @@
+{
+  "name": "mines-tma",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env server.js",
+    "start": "node server.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "setup-bot": "node scripts/setup-bot.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10"
+  }
+}

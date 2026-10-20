@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Mines</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="who"><span class="avatar" id="avatar">?</span><span id="name">…</span></div>
+  <div class="wallet" aria-live="polite"><span class="coin">🪙</span><b id="balance">—</b></div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" class="tab on" data-tab="play">Play</button>
+  <button role="tab" class="tab" data-tab="history">History</button>
+  <button role="tab" class="tab" data-tab="top">Top</button>
+  <button class="bonus" id="bonus" type="button">🎁 Daily</button>
+</nav>
+
+<main>
+  <section id="tab-play" class="panel on">
+    <div class="ladder" id="ladder" aria-label="Multiplier per safe tile"></div>
+
+    <div class="status" id="status" aria-live="polite">Pick a bet and start</div>
+
+    <div class="grid" id="grid" aria-label="Mines board"></div>
+
+    <div class="bets" id="bets" role="radiogroup" aria-label="Bet amount"></div>
+
+    <button class="cta" id="cta" type="button">Bet</button>
+
+    <details class="fair" id="fair">
+      <summary>🔒 Provably fair</summary>
+      <p>Mines are fixed by a secret seed before you play. We show its SHA-256 now and reveal the seed after the round, so you can check nothing was changed.</p>
+      <p class="mono">Hash: <span id="hash">—</span></p>
+      <p class="mono" id="seedRow" hidden>Seed: <span id="seed"></span></p>
+      <button type="button" id="verify" class="ghost" hidden>Verify last round</button>
+      <p id="verifyOut"></p>
+    </details>
+  </section>
+
+  <section id="tab-history" class="panel">
+    <ul class="list" id="history"></ul>
+  </section>
+
+  <section id="tab-top" class="panel">
+    <p class="hint">Ranked by total virtual profit</p>
+    <ol class="list" id="top"></ol>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="alert" hidden></div>
+
+<div class="gate" id="gate" hidden>
+  <div>
+    <div class="big">💣</div>
+    <h1>Mines</h1>
+    <p>This game runs inside Telegram.</p>
+    <a class="cta" id="botLink" href="#">Open in Telegram</a>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
