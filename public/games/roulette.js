@@ -29,14 +29,14 @@ export default function mount(root, { refresh, resync }) {
 
   const colorDot = n => (n === 0 ? 'green' : reds.includes(n) ? 'red' : 'black');
   function renderControls() {
-    const spinning = phase === 'spinning';
-    const status = phase === 'waiting' ? 'Waiting · pick a bet and spin'
-      : spinning ? 'Spinning…'
+    const spinning = phase === 'spinning' || act.busy; // show it the moment the player taps, not after the round trip
+    const status = spinning ? 'Spinning…'
+      : phase === 'waiting' ? 'Waiting · pick a bet and spin'
       : g.won ? `<span class="win">${g.number} ${colorDot(g.number) === 'red' ? '🔴' : colorDot(g.number) === 'black' ? '⚫' : '🟢'} · +${fmt(g.net)}${COIN}</span>`
       : `<span class="lose">${g.number} ${colorDot(g.number) === 'red' ? '🔴' : colorDot(g.number) === 'black' ? '⚫' : '🟢'} · −${fmt(g.bet)}${COIN}</span>`;
     const off = spinning || act.busy;
     controls.innerHTML = `
-      <div class="status" aria-live="polite"><small class="phase">${phase === 'result' ? 'Result' : spinning ? 'Spinning' : 'Waiting'}</small>${status}</div>
+      <div class="status" aria-live="polite"><small class="phase">${spinning ? 'Spinning' : phase === 'result' ? 'Result' : 'Waiting'}</small>${status}</div>
       <div class="types">${Object.entries(LABEL).map(([t, l]) => `<button type="button" class="type ${t} ${type === t ? 'on' : ''}" data-type="${t}" ${off ? 'disabled' : ''}>${l}<small>${payouts[t]}x</small></button>`).join('')}
         <button type="button" class="type num ${type === 'number' ? 'on' : ''}" data-type="number" ${off ? 'disabled' : ''}>#${type === 'number' ? number : ''} Number<small>${payouts.number}x</small></button></div>
       ${showNums ? `<div class="numgrid">${[...Array(37).keys()].map(n => `<button type="button" class="n ${colorDot(n)} ${type === 'number' && number === n ? 'on' : ''}" data-num="${n}" ${off ? 'disabled' : ''}>${n}</button>`).join('')}</div>` : ''}

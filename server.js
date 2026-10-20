@@ -89,8 +89,8 @@ api.post('/bonus', async (req, res) => {
 });
 
 api.get('/history', async (req, res) => {
-  const game = req.query.game;
-  if (game && !(game in GAMES)) throw new HttpError(400, 'Unknown game');
+  const game = req.query.game || undefined;
+  if (game !== undefined && !(typeof game === 'string' && Object.hasOwn(GAMES, game))) throw new HttpError(400, 'Unknown game');
   const { rows } = await req.db.query(
     `SELECT * FROM games WHERE user_id=$1 AND status <> 'active' AND ($2::text IS NULL OR game = $2)
      ORDER BY id DESC LIMIT 10`, [req.uid, game ?? null]);

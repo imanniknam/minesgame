@@ -177,6 +177,122 @@ test('crash: round ends on the server even if the client disappears (auto cash-o
   else { assert.equal(g.won, false); assert.equal(s.user.balance, 950); }
 });
 
+// ---------- white-box: read the hidden outcome from the DB to drive exact paths ----------
+const dbq = async (sql, p) => (await (await import('../lib/db.js')).getDb()).query(sql, p);
+const activeRow = async uid => (await dbq(`SELECT * FROM games WHERE user_id=$1 AND status='active'`, [uid])).rows[0];
+
+test('mines: clearing all 7 safe tiles auto-pays 34.20x; revealing a used tile is idempotent', async () => {
+  const c = client();
+  await c('POST', '/mines/bet', { bet: 100 });
+  const { mines: bombs } = await activeRow(c.uid);
+  const safe = [...Array(9).keys()].filter(x => !bombs.includes(x));
+  let r;
+  for (const [i, cell] of safe.entries()) {
+    r = await c('POST', '/mines/reveal', { cell });
+    if (i < 6) {
+      assert.equal(r.game.status, 'active');
+      assert.equal(r.game.multiplier, mines.LADDER[i] / 100);
+      assert.deepEqual((await c('POST', '/mines/reveal', { cell })).game.revealed, r.game.revealed); // replay
+    }
+  }
+  assert.equal(r.game.status, 'cashed');
+  assert.equal(r.game.multiplier, 34.2);
+  assert.equal(r.balance, 900 + 3420);
+  assert.equal((await c('POST', '/mines/cashout')).status, 409);
+});
+
+test('poop: perfect 5-stage run auto-pays 30.40x', async () => {
+  const c = client();
+  await c('POST', '/poop/bet', { bet: 50 });
+  const { seed } = await activeRow(c.uid);
+  let r;
+  for (let s = 0; s < 5; s++) r = await c('POST', '/poop/pick', { choice: poop.answer(seed, s), stage: s });
+  assert.equal(r.game.status, 'cashed');
+  assert.equal(r.game.stage, 5);
+  assert.equal(r.game.payout, 50 * 30.4);
+  assert.equal(r.balance, 950 + 1520);
+});
+
+test('crash: cash-out after the crash point pays nothing; before it pays bet x server multiplier', async () => {
+  const c = client();
+  // force a 1.01x crash, then try to cash out at ~1.06x
+  await c('POST', '/crash/bet', { bet: 100 });
+  await dbq(`UPDATE games SET data = jsonb_set(data, '{crash}', '101') WHERE user_id=$1 AND status='active'`, [c.uid]);
+  await sleep(crash.COUNTDOWN_MS + 1000);
+  const late = await c('POST', '/crash/cashout');
+  assert.equal(late.game.won, false);
+  assert.equal(late.balance, 900);
+  // force a far crash point and cash out mid-flight
+  await c('POST', '/crash/bet', { bet: 100 });
+  await dbq(`UPDATE games SET data = jsonb_set(data, '{crash}', '100000') WHERE user_id=$1 AND status='active'`, [c.uid]);
+  await sleep(crash.COUNTDOWN_MS + 800);
+  const out = await c('POST', '/crash/cashout');
+  assert.equal(out.game.won, true);
+  assert.ok(out.game.multiplier >= 1.04 && out.game.multiplier < 1.2, `m=${out.game.multiplier}`);
+  assert.equal(out.game.payout, Math.round(100 * out.game.multiplier * 100) / 100);
+  assert.equal(out.balance, 800 + out.game.payout);
+});
+
+test('input fuzzing: every bad payload is a clean 4xx, never 500, never charged', async () => {
+  const c = client();
+  const bad = [
+    ['/mines/bet', { bet: 0 }], ['/mines/bet', { bet: -10 }], ['/mines/bet', { bet: 10.5 }], ['/mines/bet', { bet: '10' }],
+    ['/mines/bet', { bet: [10] }], ['/mines/bet', {}], ['/mines/bet', { bet: 10, rid: 'x' }], ['/mines/bet', { bet: 10, rid: 'a'.repeat(65) }],
+    ['/crash/bet', { bet: 10, auto: 1 }], ['/crash/bet', { bet: 10, auto: 1001 }], ['/crash/bet', { bet: 10, auto: '2' }],
+    ['/roulette/spin', { bet: 10 }], ['/roulette/spin', { bet: 10, type: 'number' }], ['/roulette/spin', { bet: 10, type: 'number', number: -1 }],
+    ['/roulette/spin', { bet: 10, type: 'number', number: 1.5 }], ['/roulette/spin', { bet: 10, type: '__proto__' }], ['/roulette/spin', { bet: 10, type: 'toString' }],
+    ['/poop/pick', { choice: 0 }], ['/mines/reveal', { cell: 0 }], ['/mines/cashout', {}], ['/poop/cashout', {}],
+  ];
+  for (const [path, body] of bad) {
+    const r = await c('POST', path, body);
+    assert.ok(r.status >= 400 && r.status < 500, `${path} ${JSON.stringify(body)} -> ${r.status}`);
+  }
+  await c('POST', '/mines/bet', { bet: 10 });
+  for (const cell of [-1, 9, 1.5, '1', null]) assert.equal((await c('POST', '/mines/reveal', { cell })).status, 400);
+  for (const q of ['?game=toString', '?game=constructor', '?game=__proto__', '?game=nope', '?game=mines&game=crash']) assert.equal((await c('GET', '/history' + q)).status, 400, q);
+  const raw = await fetch(origin + '/api/mines/cashout', { method: 'POST', headers: { 'content-type': 'application/json', 'x-dev-user': String(c.uid) }, body: '{bad json' });
+  assert.equal(raw.status, 400);
+  assert.equal(await balance(c), 990); // only the one valid bet was charged
+});
+
+test('a request id used for one game cannot replay into another', async () => {
+  const c = client();
+  await c('POST', '/roulette/spin', { bet: 10, type: 'red', rid: 'rid-cross-0001' });
+  const r = await c('POST', '/mines/bet', { bet: 10, rid: 'rid-cross-0001' });
+  assert.equal(r.status, 409);
+});
+
+test('race: parallel reveals + cash-out on one board stay consistent', async () => {
+  const c = client();
+  await c('POST', '/mines/bet', { bet: 100 });
+  const rs = await Promise.all([...[0, 1, 2, 3, 4, 5, 6, 7, 8].map(cell => c('POST', '/mines/reveal', { cell })), c('POST', '/mines/cashout')]);
+  assert.ok(rs.every(r => r.status === 200 || r.status === 409 || r.status === 400));
+  const [g] = (await c('GET', '/history?game=mines')).games;
+  const final = await balance(c);
+  assert.equal(final, 900 + g.payout);
+  if (g.won) assert.equal(g.payout, (100 * mines.LADDER[g.revealed.length - 1]) / 100);
+  else assert.ok(g.mines.includes(g.revealed.at(-1)));
+});
+
+test('ledger invariant: for every user, balance == sum(ledger) and every settled round paid exactly', async () => {
+  const { rows: users } = await dbq(`SELECT u.id, u.balance, COALESCE(SUM(l.amount),0) AS total, MIN(l.balance_after) AS lowest
+    FROM users u LEFT JOIN ledger l ON l.user_id=u.id GROUP BY u.id`);
+  assert.ok(users.length > 10);
+  for (const u of users) {
+    assert.equal(Number(u.balance), Number(u.total), `user ${u.id}`);
+    assert.ok(Number(u.lowest) >= 0, `user ${u.id} went negative`);
+  }
+  const { rows: bad } = await dbq(`SELECT id FROM games WHERE
+       (status='cashed' AND payout <> bet * mult_x100 / 100) OR (status='busted' AND payout <> 0)
+    OR (status <> 'active' AND ended_at IS NULL)`);
+  assert.deepEqual(bad, []);
+  const { rows: wins } = await dbq(`SELECT g.id FROM games g WHERE g.status='cashed'
+     AND (SELECT COUNT(*) FROM ledger l WHERE l.game_id=g.id AND l.kind='win') <> 1`);
+  assert.deepEqual(wins, []); // each win paid exactly once
+  const { rows: multi } = await dbq(`SELECT user_id FROM games WHERE status='active' GROUP BY user_id HAVING COUNT(*) > 1`);
+  assert.deepEqual(multi, []);
+});
+
 test('wallet ledger and profile stats reflect real rounds', async () => {
   const c = client();
   const spin = await c('POST', '/roulette/spin', { bet: 50, type: 'odd' });

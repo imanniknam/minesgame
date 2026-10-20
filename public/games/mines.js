@@ -24,7 +24,7 @@ export default function mount(root, { initial, refresh, resync }) {
       <div class="status" aria-live="polite">${status}</div>
       <div class="board panel neon"><div class="grid ${g ? '' : 'idle'}">${cells}</div></div>
       ${betChips(active || act.busy)}
-      <button type="button" class="cta ${cta[1]}" data-cta ${cta[2] ? 'disabled' : ''}>${cta[0]}</button>
+      <button type="button" class="cta ${cta[1]} ${act.busy ? 'busy' : ''}" data-cta ${cta[2] ? 'disabled' : ''}>${cta[0]}</button>
       ${fairBox(g)}`;
     root.querySelector('.step.next')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }

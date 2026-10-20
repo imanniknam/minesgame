@@ -21,7 +21,7 @@ Four quick games in one Telegram bot, one wallet, one account: **💣 Mines · �
 ## Odds (5% house edge everywhere, unit tested)
 
 - **Mines:** `P(k) = C(7,k)/C(9,k)`, multiplier = `0.95 / P(k)` floored → 1.22, 1.62, 2.28, 3.42, 5.70, 11.40, 34.20x.
-- **Crash:** `r` = 52 bits of `sha256(seed)` / 2^52, crash point `C = floor(95 / (1 − r)) / 100`, minimum 1.00x, capped at 1000x. A cash-out at M wins iff `M < C`, so `P(win) = 0.95 / (M + 0.01)` and RTP ≤ 95% for every M (≈5% of rounds bust instantly). Curve: `m(t) = e^(0.00006·t_ms)`.
+- **Crash:** `r` = 52 bits of `sha256(seed)` / 2^52, crash point `C = floor(95 / (1 − r)) / 100`, minimum 1.00x, capped at 1000x. A cash-out at M wins iff `M < C`, so `P(win) = 0.95 / (M + 0.01)` and RTP ≤ 95% for every M (≈5.9% of rounds bust instantly at 1.00x). Curve: `m(t) = e^(0.00006·t_ms)`.
 - **Roulette:** standard European payouts (RTP 36/37 ≈ 97.3%); number = 32-bit chunks of `sha256(seed:i)` with rejection sampling, so there's no modulo bias.
 - **Poop:** fixed table from the brief (`0.95 / 0.5^k`); each stage's answer is one bit of `sha256(seed:stage)`, fixed at bet time.
 

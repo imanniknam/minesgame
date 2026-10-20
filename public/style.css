@@ -248,3 +248,5 @@ button:disabled { opacity: .45; cursor: default; }
 
 .cta .coin, .status .coin, .sky .coin, .row .coin { margin-left: 5px; vertical-align: -3px; }
 .cta .coin { box-shadow: none; }
+.cta.busy { position: relative; color: transparent !important; }
+.cta.busy::after { content: ''; position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff; animation: spin .7s linear infinite; }

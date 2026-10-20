@@ -11,10 +11,10 @@ export default function mount(root, { initial, refresh, resync }) {
   root.innerHTML = `
     <div class="recent" data-recent></div>
     <div class="sky"><canvas data-canvas></canvas>
-      <div class="big"><small data-phase>Waiting</small><b data-mult>1.00x</b><span data-sub></span></div></div>
+      <div class="big"><small data-phase-label>Waiting</small><b data-mult>1.00x</b><span data-sub></span></div></div>
     <div data-controls></div>`;
   const canvas = root.querySelector('[data-canvas]'), ctx2 = canvas.getContext('2d');
-  const multEl = root.querySelector('[data-mult]'), phaseEl = root.querySelector('[data-phase]'), subEl = root.querySelector('[data-sub]');
+  const multEl = root.querySelector('[data-mult]'), phaseEl = root.querySelector('[data-phase-label]'), subEl = root.querySelector('[data-sub]');
   const controls = root.querySelector('[data-controls]');
 
   const multAt = ms => (ms <= 0 ? 1 : Math.floor(100 * Math.exp(K * ms)) / 100);
@@ -81,7 +81,7 @@ export default function mount(root, { initial, refresh, resync }) {
         <input type="number" inputmode="decimal" min="1.01" max="1000" step="0.01" value="${auto.x}" data-autox aria-label="Auto cash-out multiplier" ${live || !auto.on ? 'disabled' : ''}>x
         <label class="switch"><input type="checkbox" data-auto aria-label="Enable auto cash-out" ${auto.on ? 'checked' : ''} ${live ? 'disabled' : ''}><i></i></label></div>
       ${betChips(live || act.busy)}
-      <button type="button" class="cta ${cta[1]}" data-cta ${cta[2] ? 'disabled' : ''}>${cta[0]}</button>
+      <button type="button" class="cta ${cta[1]} ${act.busy ? 'busy' : ''}" data-cta ${cta[2] ? 'disabled' : ''}>${cta[0]}</button>
       ${fairBox(g)}`;
   }
 
@@ -133,5 +133,9 @@ export default function mount(root, { initial, refresh, resync }) {
   addEventListener('resize', onResize);
   renderRecent(); loadRecent();
   start();
+  // no live round: show the one that just ended on its own (e.g. crashed while the player was elsewhere)
+  if (!g) api('/crash/status').then(r => {
+    if (!g && r.game && Date.now() - new Date(r.game.createdAt) < 120000) { g = r.game; frame(); renderControls(); }
+  }).catch(() => {});
   return { destroy() { stop(); removeEventListener('resize', onResize); } };
 }

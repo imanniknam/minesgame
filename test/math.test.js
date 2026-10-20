@@ -50,10 +50,10 @@ test('roulette: every number 0..36 reachable, roughly uniform', () => {
   assert.ok(counts.every(c => c > 800 && c < 1200), counts.join(','));
 });
 
-test('crash: P(win at M) = 95/(M+1) -> RTP <= 95%, ~5% instant bust', () => {
+test('crash: P(win at M) = 95/(M+1) -> RTP <= 95%, ~5.9% instant bust (1 - 95/101)', () => {
   const N = 40000, pts = Array.from({ length: N }, () => crash.crashFromSeed(newSeed().seed));
   const instant = pts.filter(c => c === 100).length / N;
-  assert.ok(instant > 0.04 && instant < 0.06, `instant=${instant}`);
+  assert.ok(Math.abs(instant - (1 - 95 / 101)) < 0.006, `instant=${instant}`);
   for (const M of [101, 150, 200]) { // expected 0.95*M/(M+1); bounds ~4 sigma
     const rtp = pts.filter(c => M < c).length / N * M / 100;
     assert.ok(rtp < 0.975 && rtp > 0.915, `M=${M} rtp=${rtp}`);

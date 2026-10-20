@@ -66,7 +66,8 @@ export function makeAct(render, resync) {
     try { await fn(); }
     catch (e) {
       toast(e.message); haptic('notificationOccurred', 'error');
-      if (e.status === 409 || e.status === 401) await resync?.(e).catch(() => {});
+      if (e.data?.activeGame) dispatchEvent(new CustomEvent('active-game', { detail: e.data.activeGame })); // take them to the unfinished round
+      else if (e.status === 409 || e.status === 401) await resync?.(e).catch(() => {});
     } finally { st.busy = false; render(); }
   };
   return st;

@@ -10,6 +10,7 @@ const GAMES = {
   roulette: { mount: roulette, icon: '🎡', name: 'Roulette', title: 'European Roulette', sub: 'Place your bet and spin the wheel.', tag: 'Classic & Elegant', max: '36x' },
   poop: { mount: poop, icon: '💩', name: 'Poop', title: 'Poop', sub: 'The luckiest little poop!', tag: 'Fun & Crazy', max: '30.40x' },
 };
+const isGame = k => typeof k === 'string' && Object.hasOwn(GAMES, k);
 const RLABEL = { red: '🔴 Red', black: '⚫ Black', odd: 'Odd', even: 'Even' };
 const KIND = { signup: ['🎉', 'Welcome bonus'], bonus: ['🎁', 'Daily bonus'], referral: ['🤝', 'Friend joined'] };
 
@@ -33,7 +34,7 @@ async function loadState() {
 function go(to) {
   mounted?.destroy(); mounted = null;
   screen = to;
-  const root = $('#screen'), inGame = to in GAMES, sub = inGame || to === 'top';
+  const root = $('#screen'), inGame = isGame(to), sub = inGame || to === 'top';
   root.innerHTML = '';
   $('#back').hidden = !sub;
   if (tg?.BackButton) sub ? tg.BackButton.show() : tg.BackButton.hide();
@@ -51,6 +52,7 @@ function go(to) {
 const back = () => { haptic('impactOccurred', 'light'); const to = screen === 'top' ? 'profile' : 'home'; loadState().catch(() => {}).finally(() => go(to)); };
 $('#back').onclick = back;
 tg?.BackButton?.onClick(back);
+addEventListener('active-game', e => setTimeout(() => loadState().catch(() => {}).finally(() => go(e.detail)), 900));
 $('#nav').onclick = e => {
   const b = e.target.closest('[data-nav]');
   if (!b || !S.user) return;
@@ -193,7 +195,7 @@ const RENDER = {
 };
 
 $('#screen').addEventListener('click', e => {
-  if (screen in GAMES) return; // game modules handle their own clicks
+  if (isGame(screen)) return; // game modules handle their own clicks
   const card = e.target.closest('[data-go]'), act = e.target.closest('[data-act]'), f = e.target.closest('[data-filter]'), sh = e.target.closest('[data-sheet]');
   if (card) { haptic('impactOccurred', 'light'); return go(card.dataset.go); }
   if (f) { histFilter = f.dataset.filter; haptic('selectionChanged'); return RENDER.history(); }
@@ -222,11 +224,15 @@ const seen = () => { try { return localStorage.getItem('pg_seen') === '1'; } cat
     await loadState();
     // an unfinished round wins over the deep link: the player resumes it after a refresh/disconnect
     const want = activeGame?.game ?? params.get('game');
-    go(want in GAMES ? want : 'home');
-  } catch (e) { toast(e.message); }
+    go(isGame(want) ? want : 'home');
+  } catch (e) {
+    hideSplash();
+    $('#screen').innerHTML = `<div class="empty" style="padding-top:80px">${esc(e.message)}<br><br><button type="button" class="cta inline" onclick="location.reload()">Try again</button></div>`;
+    return;
+  }
   setInterval(() => { if (screen === 'home') RENDER.home(); }, 60000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && S.user && !(screen in GAMES)) loadState().then(() => RENDER[screen]?.()).catch(() => {});
+    if (!document.hidden && S.user && !isGame(screen)) loadState().then(() => RENDER[screen]?.()).catch(() => {});
   });
   await minSplash;
   // first visit: the splash doubles as a welcome screen; afterwards it's just a loader

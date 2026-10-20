@@ -8,7 +8,8 @@
     "dev": "node --env-file-if-exists=.env server.js",
     "start": "node server.js",
     "test": "node --test --test-concurrency=1 test/*.test.js",
-    "setup-bot": "node scripts/setup-bot.js"
+    "setup-bot": "node scripts/setup-bot.js",
+    "e2e": "node scripts/e2e-prod.mjs"
   },
   "dependencies": {
     "express": "^5.3.0",
