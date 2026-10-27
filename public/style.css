@@ -182,6 +182,10 @@ button:disabled { opacity: .45; cursor: default; }
 .gem { border-color: var(--blue) !important; box-shadow: var(--glow-b), inset 0 0 18px rgba(6,182,212,.35) !important; animation: pop .25s; filter: drop-shadow(0 0 6px rgba(6,182,212,.8)); }
 .boom { border-color: var(--lose) !important; background: radial-gradient(circle, rgba(239,68,68,.55), #2a0d16) !important; box-shadow: 0 0 20px rgba(239,68,68,.7) !important; animation: shake .35s; }
 .cell.ghost { opacity: .4; font-size: 30px; }
+/* the board is re-rendered on every tap: only the tile that just opened animates, the rest stay still */
+.cell.gem:not(.new), .cell.boom:not(.new) { animation: none; }
+.cell.pending { border-color: var(--blue); animation: probe .7s ease-in-out infinite; }
+@keyframes probe { 50% { transform: scale(.94); box-shadow: var(--glow-b), inset 0 0 22px rgba(6,182,212,.45); } }
 .grid.idle .cell { opacity: .6; }
 
 /* poop */

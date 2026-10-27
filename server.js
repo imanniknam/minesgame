@@ -38,6 +38,9 @@ async function ensureUser(q, tg, referrer = null) {
   }
 }
 
+// Users whose row already exists: a warm instance skips the upsert, saving one DB transaction on every tap.
+const known = new Set();
+
 // ---------- auth: every /api call carries Telegram initData; the server verifies its HMAC ----------
 async function auth(req, _res, next) {
   try {
@@ -46,7 +49,11 @@ async function auth(req, _res, next) {
     if (!tg && DEV_AUTH && req.get('x-dev-user')) tg = { id: Number(req.get('x-dev-user')), first_name: 'Dev' };
     if (!tg || !Number.isSafeInteger(tg.id)) throw new HttpError(401, 'Open the game from Telegram');
     const db = await getDb();
-    await db.tx(q => ensureUser(q, tg));
+    if (!known.has(tg.id)) {
+      await db.tx(q => ensureUser(q, tg));
+      if (known.size > 50000) known.clear();
+      known.add(tg.id);
+    }
     req.uid = tg.id; req.db = db;
     next();
   } catch (e) { next(e); }
