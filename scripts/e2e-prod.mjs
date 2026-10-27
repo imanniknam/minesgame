@@ -60,6 +60,12 @@ const fairOk = g => { assert.equal(sha(g.seed), g.seedHash, `seed hash mismatch 
 
 console.log(`E2E against ${BASE}\n`);
 
+{ // this suite plays all four games; with only Mines switched on, scripts/e2e-mines.mjs is the one to run
+  const s = await fetch(BASE + '/api/state', { headers: { authorization: 'tma ' + initData(nextId) } }).then(r => r.json());
+  const on = Object.keys(s.config?.games ?? {}).sort().join();
+  if (on !== 'crash,mines,poop,roulette') { console.log(`Enabled games: ${on || '?'} — run "npm run e2e:mines" instead.`); process.exit(2); }
+}
+
 // ---------- 1. auth ----------
 await check('auth: missing / forged / expired / other-bot / dev-header all rejected; valid accepted', async () => {
   const id = nextId--;

@@ -67,7 +67,11 @@ Mini App (public/, vanilla JS modules) ──Authorization: tma <initData>──
   - runs concurrency races and checks the same accounting invariants in the production DB
   - then deletes its test users
 
-  Run it with `BOT_TOKEN=… DATABASE_URL=… npm run e2e`.
+  Run it with `BOT_TOKEN=… DATABASE_URL=… npm run e2e`. It needs all four games switched on.
+- `npm run e2e:mines` is the strict Mines-only suite (same env), for the current Mines-only setup:
+  - auth and 40 malformed payloads, 40 random rounds checked against the seed to the cent, full board and first-tile bust
+  - bet change before the first tile (up, down, stale replay, unaffordable), and races: parallel bet changes, bet change vs reveal, 9 reveals + 3 cash-outs
+  - no bomb leak through any view, bomb-position chi² over 120 rounds, 15 players at once, DB accounting invariants, latency per endpoint
 
 ## Run locally
 

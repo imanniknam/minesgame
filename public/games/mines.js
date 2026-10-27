@@ -21,7 +21,8 @@ export default function mount(root, { initial, refresh, resync }) {
     }
     const cta = active && g.revealed.length ? [`Cash out ${fmt(g.cashout)}`, 'cash', act.busy]
       : active ? ['Pick a tile', '', true]
-      : [`${g ? 'Play again' : 'Bet'} · ${S.bet}${COIN}`, '', act.busy || S.user.balance < S.bet];
+      : S.user.balance < S.bet ? [`Not enough coins for ${S.bet}${COIN}`, '', true]
+      : [`${g ? 'Play again' : 'Bet'} · ${S.bet}${COIN}`, '', act.busy];
     root.innerHTML = `
       <div class="ladder">${cfg.ladder.map((m, i) => `<div class="step ${i < k ? 'done' : ''} ${i === k ? 'next' : ''}"><small>${i + 1} 💎</small><b>${m.toFixed(2)}x</b></div>`).join('')}</div>
       <div class="status" aria-live="polite"><span>${status}</span></div>
