@@ -1,4 +1,5 @@
 // Shared client plumbing. The client never decides outcomes or balances; it renders server answers.
+import * as fx from './fx.js';
 export const tg = window.Telegram?.WebApp;
 export const $ = (sel, root = document) => root.querySelector(sel);
 // Signed launch data. Normally from the SDK; if the SDK failed to load, Telegram still passes it in the URL hash.
@@ -36,13 +37,16 @@ export function toast(msg) {
   clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 2600);
 }
 
-export function setBalance(b) {
+// The balance ticks to its new value; `delay` lets a win count up as the flying coins land.
+export function setBalance(b, delay = 0) {
   const el = $('#balance'), prev = S.user.balance;
-  S.user.balance = b; el.textContent = fmt(b);
-  if (prev != null && b !== prev) {
+  S.user.balance = b;
+  if (prev == null || b === prev) { el.textContent = fmt(b); return; }
+  fx.countTo(el, prev, b, fmt, { delay });
+  setTimeout(() => {
     el.className = b > prev ? 'up' : 'down';
-    setTimeout(() => (el.className = ''), 700);
-  }
+    setTimeout(() => (el.className = ''), 900);
+  }, delay * 1000);
 }
 
 // Bet chips 10 / 50 / 100, shared by every game.

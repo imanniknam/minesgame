@@ -3,6 +3,7 @@ import mines from './games/mines.js';
 import crash from './games/crash.js';
 import roulette from './games/roulette.js';
 import poop from './games/poop.js';
+import * as fx from './fx.js';
 
 const ALL_GAMES = {
   mines: { mount: mines, icon: '💎', name: 'Mines', title: 'Mines', sub: 'Find safe tiles. Avoid the mines.', tag: 'Risk & Strategy', max: '34.20x',
@@ -48,7 +49,11 @@ function go(to) {
   if (tg?.BackButton) sub ? tg.BackButton.show() : tg.BackButton.hide();
   document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === (inGame ? 'home' : to === 'top' ? 'profile' : to)));
   scrollTo(0, 0);
-  if (!inGame) return RENDER[to]();
+  if (!inGame) {
+    RENDER[to]();
+    fx.enter([...root.children].filter(el => !el.matches('.cards')));
+    return fx.enter(root.querySelectorAll('.card'), { y: 40, scale: 0.85, rotation: -2, duration: 0.6, stagger: 0.08, ease: 'back.out(1.6)', delay: 0.12 });
+  }
   const m = GAMES[to];
   root.innerHTML = `<div class="ghead c-${to}"><h2>${m.title}</h2><p>${m.sub}</p></div><section class="game"></section>`;
   mounted = m.mount($('.game', root), {
@@ -56,6 +61,7 @@ function go(to) {
     refresh: () => { activeGame = null; },
     resync: async () => { const s = await loadState(); return s.game?.game === to ? s.game : null; },
   });
+  fx.enter(root.querySelector('.ghead'), { x: -24, y: 0 });
 }
 const back = () => { haptic('impactOccurred', 'light'); const to = screen === 'top' ? 'profile' : 'home'; loadState().catch(() => {}).finally(() => go(to)); };
 $('#back').onclick = back;
@@ -215,10 +221,16 @@ $('#screen').addEventListener('click', e => {
 });
 
 // ---------- boot ----------
-function hideSplash() { const s = $('#splash'); s.classList.add('out'); setTimeout(() => (s.hidden = true), 450); }
+function hideSplash() {
+  const s = $('#splash');
+  s.style.pointerEvents = 'none';
+  if (fx.on) return fx.splashOut(s, () => (s.hidden = true));
+  s.classList.add('out'); setTimeout(() => (s.hidden = true), 450);
+}
 const seen = () => { try { return localStorage.getItem('pg_seen') === '1'; } catch { return true; } };
 
 (async function boot() {
+  fx.splashIn($('#splash'));
   tg?.ready(); tg?.expand();
   try { tg?.setHeaderColor?.('#080812'); tg?.setBackgroundColor?.('#080812'); tg?.disableVerticalSwipes?.(); } catch {}
   const params = new URLSearchParams(location.search);
@@ -246,5 +258,6 @@ const seen = () => { try { return localStorage.getItem('pg_seen') === '1'; } cat
   // first visit: the splash doubles as a welcome screen; afterwards it's just a loader
   if (seen() || activeGame || !S.user) return hideSplash();
   $('#splashAct').innerHTML = '<button type="button" class="cta inline" id="start">🎮 START PLAYING</button>';
+  fx.enter('#start', { scale: 0.7, y: 10, ease: 'back.out(2)' });
   $('#start').onclick = () => { try { localStorage.setItem('pg_seen', '1'); } catch {} haptic('impactOccurred', 'medium'); hideSplash(); };
 })();

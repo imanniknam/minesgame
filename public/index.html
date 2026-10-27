@@ -8,6 +8,13 @@
 <!-- self-hosted copy of https://telegram.org/js/telegram-web-app.js: telegram.org is filtered in some countries
      (e.g. Iran) even when the Telegram app itself works through a proxy, which left players stuck outside the app -->
 <script src="telegram-web-app.js"></script>
+<!-- GSAP, self-hosted for the same reason; fx.js turns every effect into a no-op if it fails to load -->
+<script>document.documentElement.classList.add('fx-pending'); setTimeout(function () { document.documentElement.classList.remove('fx-pending'); }, 3000);</script>
+<script defer src="vendor/gsap/gsap.min.js"></script>
+<script defer src="vendor/gsap/Physics2DPlugin.min.js"></script>
+<script defer src="vendor/gsap/MotionPathPlugin.min.js"></script>
+<script defer src="vendor/gsap/CustomEase.min.js"></script>
+<script defer src="vendor/gsap/CustomWiggle.min.js"></script>
 <link rel="preload" href="fonts/poppins-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
