@@ -565,3 +565,44 @@ body.in-game .mgrid { padding: clamp(8px, calc(var(--s) * .04), 14px); border-ra
 .splash.out .deco { animation: sp-rocket-out .6s cubic-bezier(.55, 0, 1, .45) forwards; }
 .splash.out .brand, .splash.out h1, .splash.out p, .splash.out #splashAct { animation: sp-lift .3s ease-in forwards; }
 .splash.out p { animation-delay: .04s; } .splash.out #splashAct { animation-delay: .08s; }
+
+/* ===== v5 · responsive hardening (audited from 320x480 to 1280x800, portrait + landscape) ===== */
+.back { flex: none; }
+/* title row is a grid: the help button sits in the flow, so it can never overlap the board */
+.ghead { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t h" "s h"; align-items: center; column-gap: 10px; padding-right: 0; }
+.ghead h2 { grid-area: t; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ghead p { grid-area: s; min-width: 0; }
+.ghead .help { grid-area: h; position: static; align-self: center; }
+.ghead-art { right: 56px; z-index: 0; }
+body.in-game .ghead { min-height: 44px; padding-right: 0; }
+
+/* the board never shrinks below a playable size; if a screen is too short for that, the game area scrolls
+   inside itself instead of squashing the tiles (44px+ each) */
+body.in-game #screen { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+body.in-game #screen::-webkit-scrollbar { display: none; }
+body.in-game .game { flex: 1 0 auto; }
+body.in-game .mboard { flex: 1 0 auto; min-height: 176px; } /* 3 tiles of 50px+ */
+
+/* narrow phones (320–360): tighter header and console */
+@media (max-width: 360px) {
+  .top { gap: 6px; }
+  .brandmark i { width: 40px; height: 34px; font-size: 16px; }
+  .top:has(.back:not([hidden])) .brandmark b { display: none; }
+  .wallet { padding-left: 8px; gap: 5px; } .wallet b { font-size: 15px; }
+  .ctl-box .lbl span { display: none; }
+  .ctl-box.bet { padding-left: 8px; }
+  .mx { grid-template-columns: 1fr auto; } .mx > .ic, .mx .mini.big { display: none; }
+  .mx small { letter-spacing: .05em; }
+  body.in-game .play { font-size: 16px; letter-spacing: 1px; gap: 6px; }
+  body.in-game .play .ic { width: 20px; height: 20px; }
+}
+
+/* landscape phones / short wide windows: board on the left, controls on the right */
+@media (orientation: landscape) and (max-height: 560px) and (min-width: 560px) {
+  body { max-width: 860px; }
+  body.in-game .game { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); align-items: stretch; gap: 12px; }
+  body.in-game .mboard { min-height: 0; height: 100%; }
+  body.in-game .console { align-self: center; }
+  body.in-game .ghead p, body.in-game .ghead-art { display: none; }
+  body.in-game .ghead { margin-bottom: 6px; }
+}

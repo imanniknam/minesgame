@@ -39,12 +39,14 @@ async function loadState() {
 }
 
 // ---------- routing ----------
+const nativeBack = !!tg?.BackButton && tg.isVersionAtLeast?.('6.1');
 function go(to) {
   mounted?.destroy(); mounted = null;
   screen = to;
   const root = $('#screen'), inGame = isGame(to), sub = inGame || to === 'top';
   root.innerHTML = '';
-  $('#back').hidden = !sub;
+  // inside Telegram the header already has a native back arrow; a second one only crowds the screen
+  $('#back').hidden = !sub || nativeBack;
   if (tg?.BackButton) sub ? tg.BackButton.show() : tg.BackButton.hide();
   document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === (inGame ? 'home' : to === 'top' ? 'profile' : to)));
   document.body.classList.toggle('in-game', inGame); // game screens fit the viewport exactly: no page scroll

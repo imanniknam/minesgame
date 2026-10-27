@@ -67,7 +67,7 @@ export default function mount(root, { initial, refresh, resync }) {
       <div class="mboard"><div class="mgrid ${g ? '' : 'idle'}">${cells}</div></div>
       <div class="console">
         <div class="ctl-row">
-          <div class="ctl-box bet"><span class="lbl">${I.stack}Bet</span>
+          <div class="ctl-box bet"><span class="lbl">${I.stack}<span>Bet</span></span>
             <button type="button" class="step-btn" data-step="-1" aria-label="Lower bet" ${betLocked || i <= 0 ? 'disabled' : ''}>${I.minus}</button>
             <output aria-live="polite" aria-label="Bet amount">${S.bet}</output>
             <button type="button" class="step-btn" data-step="1" aria-label="Raise bet" ${betLocked || i >= bets.length - 1 ? 'disabled' : ''}>${I.plus}</button></div>
