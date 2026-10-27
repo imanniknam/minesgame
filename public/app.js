@@ -240,8 +240,7 @@ $('#screen').addEventListener('click', e => {
 function hideSplash() {
   const s = $('#splash');
   s.style.pointerEvents = 'none';
-  if (fx.on) return fx.splashOut(s, () => (s.hidden = true));
-  s.classList.add('out'); setTimeout(() => (s.hidden = true), 450);
+  s.classList.add('out'); setTimeout(() => (s.hidden = true), 700); // outro is CSS (style.css), same with or without GSAP
 }
 const seen = () => { try { return localStorage.getItem('pg_seen') === '1'; } catch { return true; } };
 
@@ -272,6 +271,5 @@ const seen = () => { try { return localStorage.getItem('pg_seen') === '1'; } cat
   // first visit: the splash doubles as a welcome screen; afterwards it's just a loader
   if (seen() || activeGame || !S.user) return hideSplash();
   $('#splashAct').innerHTML = `<button type="button" class="cta inline" id="start">${I.play}START PLAYING</button>`;
-  fx.enter('#start', { scale: 0.7, y: 10, ease: 'back.out(2)' });
   $('#start').onclick = () => { try { localStorage.setItem('pg_seen', '1'); } catch {} haptic('impactOccurred', 'medium'); hideSplash(); };
 })();

@@ -136,11 +136,4 @@ export function enter(targets, vars = {}) {
   if (els.length) G.from(els, { y: 18, autoAlpha: 0, duration: 0.45, stagger: 0.06, clearProps: 'transform,opacity,visibility', ...vars });
 }
 
-export function splashOut(root, done) {
-  if (!on) return done();
-  G.timeline({ onComplete: done })
-    .to(root.querySelector('.deco'), { x: 260, y: -420, rotation: -20, duration: 0.6, ease: 'power3.in' })
-    .to(root.querySelectorAll('.brand, h1, p, #splashAct'), { y: -24, autoAlpha: 0, stagger: 0.04, duration: 0.3, ease: 'power2.in' }, 0)
-    .to(root, { autoAlpha: 0, duration: 0.35 }, 0.3);
-}
 
