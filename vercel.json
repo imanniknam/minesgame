@@ -2,7 +2,7 @@
   "headers": [
     {
       "source": "/(.*)\\.(js|css|html)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, stale-while-revalidate=86400" }]
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
     },
     {
       "source": "/(fonts|vendor)/(.*)",

@@ -39,7 +39,8 @@ async function loadState() {
 }
 
 // ---------- routing ----------
-const nativeBack = !!tg?.BackButton && tg.isVersionAtLeast?.('6.1');
+// inside Telegram the native header always has a back/close control, so ours only shows in a plain browser
+const nativeBack = !!tg?.initData || (!!tg?.BackButton && tg.isVersionAtLeast?.('6.1'));
 function go(to) {
   mounted?.destroy(); mounted = null;
   screen = to;

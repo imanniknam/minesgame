@@ -606,3 +606,9 @@ body.in-game .mboard { flex: 1 0 auto; min-height: 176px; } /* 3 tiles of 50px+ 
   body.in-game .ghead p, body.in-game .ghead-art { display: none; }
   body.in-game .ghead { margin-bottom: 6px; }
 }
+
+/* ===== v6 · the gem art lives in its own grid column of the title row, so it can never rise into the
+   header (it used to be absolute with a negative top and covered the balance on some phones) ===== */
+.ghead { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "t a h" "s a h"; }
+.ghead-art, body.in-game .ghead-art { grid-area: a; position: static; align-self: center; width: 44px; margin: 0 2px; transform: rotate(16deg); filter: drop-shadow(0 0 12px rgba(56,189,248,.6)); }
+body.in-game .ghead-art { width: 38px; }
