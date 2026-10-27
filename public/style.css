@@ -1,8 +1,7 @@
 /* ===== Plus Games · Neon Arcade ===== */
+/* two Poppins weights only: 600 renders as 700, 800 as 700 (fewer font requests on slow networks) */
 @font-face { font-family: Poppins; font-weight: 500; font-display: swap; src: url(fonts/poppins-500.woff2) format('woff2'); }
-@font-face { font-family: Poppins; font-weight: 600; font-display: swap; src: url(fonts/poppins-600.woff2) format('woff2'); }
 @font-face { font-family: Poppins; font-weight: 700; font-display: swap; src: url(fonts/poppins-700.woff2) format('woff2'); }
-@font-face { font-family: Poppins; font-weight: 800; font-display: swap; src: url(fonts/poppins-800.woff2) format('woff2'); }
 
 :root {
   --purple: #a855f7; --blue: #06b6d4; --pink: #ec4899; --green: #22d3aa;
@@ -257,7 +256,6 @@ button:disabled { opacity: .45; cursor: default; }
 .cta.busy::after { content: ''; position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff; animation: spin .7s linear infinite; }
 
 /* ===== GSAP effects layer (public/fx.js) ===== */
-.fx-pending .splash > * { visibility: hidden; } /* until the intro timeline takes over */
 .fx-layer { position: fixed; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
 .fx-layer > i { position: absolute; left: 0; top: 0; display: block; will-change: transform, opacity; }
 .fx-spark { border-radius: 50%; box-shadow: 0 0 8px currentColor, 0 0 14px rgba(255,255,255,.5); }
@@ -270,7 +268,6 @@ button:disabled { opacity: .45; cursor: default; }
 .fx-banner span { display: block; margin-top: 6px; font-weight: 700; font-size: 18px; color: #fff; text-shadow: 0 0 14px rgba(168,85,247,.9); }
 /* GSAP drives the tile pop/shake; the CSS keyframes stay as the no-GSAP fallback */
 .fx .cell.new { animation: none !important; }
-.fx .cell, .fx .step { will-change: transform; }
 .fx .grid { perspective: 700px; }
 
 /* =====================================================================
@@ -464,3 +461,86 @@ html:not(.fx) .tile.new.is-gem { animation: pop .25s; } html:not(.fx) .tile.new.
 .mx .mini.big { width: 40px; height: 40px; filter: drop-shadow(0 0 8px rgba(236,72,153,.7)); }
 @media (max-height: 760px) { .mgrid { max-width: 264px; } .mx-now { font-size: 28px; } .play { height: 54px; } }
 .step-btn { flex: none; } .ctl-box output { min-width: 0; }
+
+/* =====================================================================
+   v4 · speed + one-screen game layout (Stake-style: the board shrinks to fit, nothing scrolls)
+   ===================================================================== */
+/* cheaper paint: the backdrop sits on a fixed layer instead of background-attachment: fixed (repaints on
+   every scroll on phones), and the nav drops its backdrop blur */
+html { background: var(--bg); }
+body { background: transparent; }
+body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background:
+    radial-gradient(70% 35% at 10% 0%, rgba(124,58,237,.28), transparent 70%),
+    radial-gradient(50% 30% at 100% 30%, rgba(34,211,238,.14), transparent 70%),
+    radial-gradient(70% 40% at 50% 100%, rgba(217,70,239,.14), transparent 70%); }
+.nav { backdrop-filter: none; background: rgba(7,7,22,.97); }
+.play::after { left: 0; transform: translateX(-120%) skewX(-20deg); animation: shine2 3.2s ease-in-out infinite; }
+@keyframes shine2 { 0%, 55% { transform: translateX(-120%) skewX(-20deg); } 100% { transform: translateX(420%) skewX(-20deg); } }
+.cta.inline .ic { width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px; }
+
+/* fixed header height so the game area can be computed */
+:root { --top-h: 62px; --app-h: 100vh; }
+@supports (height: 100dvh) { :root { --app-h: 100dvh; } }
+.top { height: var(--top-h); padding: 0; }
+
+/* ---- the game screen is exactly one viewport tall (Telegram reports its own stable height) ---- */
+html:has(body.in-game), body.in-game { overflow: hidden; overscroll-behavior: none; }
+body.in-game { padding-bottom: 0; }
+body.in-game #screen {
+  display: flex; flex-direction: column;
+  height: calc(var(--tg-viewport-stable-height, var(--app-h)) - var(--top-h) - var(--nav-h) - env(safe-area-inset-bottom) - 10px);
+}
+body.in-game .game { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+
+/* compact title row */
+body.in-game .ghead { flex: none; min-height: 0; margin: 0 2px 10px; padding: 2px 52px 0 14px; }
+body.in-game .ghead::before { top: 6px; height: 24px; }
+body.in-game .ghead h2 { font-size: 26px; }
+body.in-game .ghead p { font-size: 12.5px; margin-top: 1px; }
+body.in-game .ghead-art { width: 54px; right: 58px; top: -10px; }
+body.in-game .ghead .help { top: 0; }
+
+/* board takes whatever height is left and stays square */
+body.in-game .mboard { flex: 1; min-height: 0; margin: 0; padding: 10px; display: flex; align-items: center; justify-content: center; container-type: size; }
+body.in-game .mgrid { --s: min(100cqw, 100cqh, 420px); width: var(--s); height: var(--s); max-width: none; margin: 0; gap: clamp(6px, calc(var(--s) * .035), 12px);
+  grid-template-rows: repeat(3, 1fr); }
+body.in-game .tile { aspect-ratio: auto; width: 100%; height: 100%; border-radius: clamp(10px, calc(var(--s) * .055), 18px); }
+
+/* compact console */
+body.in-game .console { flex: none; gap: 8px; padding: 10px; border-radius: 20px; }
+.ctl-row { grid-template-columns: 1.65fr 1fr; gap: 8px; }
+.ctl-box.bet { padding: 0 3px 0 10px; }
+.ctl-box .lbl { display: flex; align-items: center; gap: 5px; margin-right: 2px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+.ctl-box .lbl .ic { width: 16px; height: 16px; color: var(--cyan); }
+.ctl-box.mines { justify-content: center; gap: 6px; }
+.ctl-box.mines .mini { width: 22px; height: 22px; }
+.ctl-box.mines b { flex: none; }
+.ctl-box.mines small { padding: 0; }
+body.in-game .ctl-box { height: 48px; }
+body.in-game .mx { padding: 8px 14px; gap: 10px; border-radius: 16px; }
+body.in-game .mx > .ic, body.in-game .mx .mini.big { width: 30px; height: 30px; }
+body.in-game .mx-now { font-size: 26px; }
+body.in-game .mx-next b { font-size: 18px; }
+.act-row { display: grid; grid-template-columns: 52px 1fr 52px; gap: 8px; }
+.icon-btn { height: 52px; display: grid; place-items: center; border-radius: 14px; border: 1.5px solid #2c2c70; background: rgba(6,6,22,.55); color: var(--cyan); transition: border-color .2s, box-shadow .2s; }
+.icon-btn .ic { width: 24px; height: 24px; }
+.icon-btn:not(:disabled):hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(34,211,238,.35); }
+body.in-game .play { height: 52px; font-size: 19px; letter-spacing: 1.5px; border-radius: 16px; }
+body.in-game .play small { font-size: 15px; }
+
+/* short phones (iPhone SE / small Androids inside Telegram) */
+@media (max-height: 700px) {
+  body.in-game .ghead p, body.in-game .ghead-art { display: none; }
+  body.in-game .ghead { margin-bottom: 8px; }
+  body.in-game .ghead h2 { font-size: 22px; }
+  body.in-game .game, body.in-game .console { gap: 6px; }
+  body.in-game .mx { padding: 6px 12px; }
+  body.in-game .mx-now { font-size: 22px; }
+  body.in-game .mx small { font-size: 10px; }
+  body.in-game .ctl-box, .act-row .icon-btn, body.in-game .play { height: 46px; }
+  .act-row { grid-template-columns: 46px 1fr 46px; }
+}
+/* the frame hugs the square board instead of stretching across empty space */
+body.in-game .mboard { background: none; border: 0; box-shadow: none; padding: 0; }
+body.in-game .mgrid { padding: clamp(8px, calc(var(--s) * .04), 14px); border-radius: 22px; border: 1.5px solid var(--edge-c);
+  background: linear-gradient(180deg, rgba(20,20,60,.88), rgba(9,9,30,.94)); box-shadow: 0 0 26px rgba(56,189,248,.25), inset 0 0 34px rgba(99,102,241,.16); }

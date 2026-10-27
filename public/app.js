@@ -1,21 +1,19 @@
 import { $, COIN, S, ago, api, esc, fmt, haptic, initData, setBalance, tg, toast } from './core.js';
 import mines from './games/mines.js';
-import crash from './games/crash.js';
-import roulette from './games/roulette.js';
-import poop from './games/poop.js';
 import * as fx from './fx.js';
 import { GEM, I } from './icons.js';
 
 const ALL_GAMES = {
   mines: { mount: mines, icon: GEM, name: 'Mines', title: 'Mines', sub: 'Find safe tiles. Avoid the mines.', tag: 'Risk & Strategy', max: '34.20x',
     help: '💎 <b>Mines</b> — 3×3 board, 2 bombs. Each safe tile raises the multiplier; cash out any time.' },
-  crash: { mount: crash, icon: '🚀', name: 'Crash', title: 'Crash', sub: 'Cash out before it blows!', tag: 'High Multiplier', max: '1000x',
+  crash: { load: () => import('./games/crash.js'), icon: '🚀', name: 'Crash', title: 'Crash', sub: 'Cash out before it blows!', tag: 'High Multiplier', max: '1000x',
     help: '🚀 <b>Crash</b> — the multiplier climbs from 1.00x. Cash out before it crashes, or set auto cash-out.' },
-  roulette: { mount: roulette, icon: '🎡', name: 'Roulette', title: 'European Roulette', sub: 'Place your bet and spin the wheel.', tag: 'Classic & Elegant', max: '36x',
+  roulette: { load: () => import('./games/roulette.js'), icon: '🎡', name: 'Roulette', title: 'European Roulette', sub: 'Place your bet and spin the wheel.', tag: 'Classic & Elegant', max: '36x',
     help: '🎡 <b>Roulette</b> — red/black or odd/even pay 2x, a single number pays 36x. Zero loses outside bets.' },
-  poop: { mount: poop, icon: '💩', name: 'Poop', title: 'Poop', sub: 'The luckiest little poop!', tag: 'Fun & Crazy', max: '30.40x',
+  poop: { load: () => import('./games/poop.js'), icon: '💩', name: 'Poop', title: 'Poop', sub: 'The luckiest little poop!', tag: 'Fun & Crazy', max: '30.40x',
     help: '💩 <b>Poop</b> — pick 💩 or 😂, 50/50 per stage, up to 5 stages (30.40x).' },
 };
+// Switched-off games are only downloaded if the server turns them back on.
 // The games the server has switched on (config.games); the rest stay hidden. Filled in by loadState().
 const GAMES = {};
 const isGame = k => typeof k === 'string' && Object.hasOwn(GAMES, k);
@@ -49,6 +47,7 @@ function go(to) {
   $('#back').hidden = !sub;
   if (tg?.BackButton) sub ? tg.BackButton.show() : tg.BackButton.hide();
   document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === (inGame ? 'home' : to === 'top' ? 'profile' : to)));
+  document.body.classList.toggle('in-game', inGame); // game screens fit the viewport exactly: no page scroll
   scrollTo(0, 0);
   if (!inGame) {
     RENDER[to]();
@@ -58,14 +57,23 @@ function go(to) {
   const m = GAMES[to];
   root.innerHTML = `<div class="ghead c-${to}"><h2>${m.title}</h2><p>${m.sub}</p>${to === 'mines' ? `<span class="ghead-art">${GEM}</span>` : ''}
     <button type="button" class="help" data-help aria-label="How to play">${I.help}</button></div><section class="game"></section>`;
-  mounted = m.mount($('.game', root), {
+  const opts = {
     initial: activeGame?.game === to ? activeGame : null,
     refresh: () => { activeGame = null; },
     resync: async () => { const s = await loadState(); return s.game?.game === to ? s.game : null; },
-  });
+  };
+  if (m.mount) mounted = m.mount($('.game', root), opts);
+  else m.load().then(mod => { if (screen === to) mounted = mod.default($('.game', root), opts); }).catch(e => toast(e.message));
   fx.enter(root.querySelector('.ghead'), { x: -24, y: 0 });
 }
-const back = () => { haptic('impactOccurred', 'light'); const to = screen === 'top' ? 'profile' : 'home'; loadState().catch(() => {}).finally(() => go(to)); };
+// Show the screen at once and refresh the state behind it (one round trip can take a second on a slow network).
+// Only home shows state-derived bits (resume badge, bonus timer), so only home re-renders when that changes.
+function nav(to) {
+  go(to);
+  const before = `${activeGame?.id}|${S.user?.bonusAt}`;
+  loadState().then(() => { if (screen === to && to === 'home' && `${activeGame?.id}|${S.user.bonusAt}` !== before) RENDER.home(); }).catch(() => {});
+}
+const back = () => { haptic('impactOccurred', 'light'); nav(screen === 'top' ? 'profile' : 'home'); };
 $('#back').onclick = back;
 tg?.BackButton?.onClick(back);
 addEventListener('active-game', e => isGame(e.detail) && setTimeout(() => loadState().catch(() => {}).finally(() => go(e.detail)), 900));
@@ -73,7 +81,7 @@ $('#nav').onclick = e => {
   const b = e.target.closest('[data-nav]');
   if (!b || !S.user) return;
   haptic('selectionChanged');
-  loadState().catch(() => {}).finally(() => go(b.dataset.nav));
+  nav(b.dataset.nav);
 };
 $('#plus').onclick = () => S.user && go('wallet');
 
@@ -238,7 +246,6 @@ function hideSplash() {
 const seen = () => { try { return localStorage.getItem('pg_seen') === '1'; } catch { return true; } };
 
 (async function boot() {
-  fx.splashIn($('#splash'));
   tg?.ready(); tg?.expand();
   try { tg?.setHeaderColor?.('#080812'); tg?.setBackgroundColor?.('#080812'); tg?.disableVerticalSwipes?.(); } catch {}
   const params = new URLSearchParams(location.search);
@@ -247,7 +254,6 @@ const seen = () => { try { return localStorage.getItem('pg_seen') === '1'; } cat
     if (cfg.bot) $('#botLink').href = `https://t.me/${cfg.bot}`;
     hideSplash(); $('#gate').hidden = false; return;
   }
-  const minSplash = new Promise(r => setTimeout(r, 700));
   try {
     await loadState();
     // an unfinished round wins over the deep link: the player resumes it after a refresh/disconnect
@@ -258,14 +264,14 @@ const seen = () => { try { return localStorage.getItem('pg_seen') === '1'; } cat
     $('#screen').innerHTML = `<div class="empty" style="padding-top:80px">${esc(e.message)}<br><br><button type="button" class="cta inline" onclick="location.reload()">Try again</button></div>`;
     return;
   }
+  setTimeout(fx.init, 300); // effects arrive after the first screen is already usable
   setInterval(() => { if (screen === 'home') RENDER.home(); }, 60000);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && S.user && !isGame(screen)) loadState().then(() => RENDER[screen]?.()).catch(() => {});
   });
-  await minSplash;
   // first visit: the splash doubles as a welcome screen; afterwards it's just a loader
   if (seen() || activeGame || !S.user) return hideSplash();
-  $('#splashAct').innerHTML = '<button type="button" class="cta inline" id="start">🎮 START PLAYING</button>';
+  $('#splashAct').innerHTML = `<button type="button" class="cta inline" id="start">${I.play}START PLAYING</button>`;
   fx.enter('#start', { scale: 0.7, y: 10, ease: 'back.out(2)' });
   $('#start').onclick = () => { try { localStorage.setItem('pg_seen', '1'); } catch {} haptic('impactOccurred', 'medium'); hideSplash(); };
 })();

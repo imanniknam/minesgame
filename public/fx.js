@@ -1,21 +1,28 @@
-// Game-feel effects on GSAP (self-hosted in vendor/gsap: CDNs are filtered for some players).
-// Everything here is decoration: if GSAP failed to load, or the player prefers reduced motion,
-// every export is a no-op and the game works exactly the same.
+// Game-feel effects on GSAP (self-hosted: CDNs are filtered for some players).
+// Everything here is decoration. GSAP is fetched in the background after the app is up (init), so it never
+// delays the first screen on a slow network; until it arrives, or if it fails, or the player prefers
+// reduced motion, every export is a no-op and the game works exactly the same.
 import { I } from './icons.js';
 
-const G = window.gsap;
-const plugins = [window.Physics2DPlugin, window.MotionPathPlugin, window.CustomEase, window.CustomWiggle];
+const VENDOR = 'vendor/gsap-3.13.0/';
+let G;
+export let gsap;
 export let on = false;
 
-if (G && plugins.every(Boolean)) {
-  G.registerPlugin(...plugins);
-  G.defaults({ duration: 0.45, ease: 'power3.out' });
-  window.CustomWiggle.create('shake', { wiggles: 7, type: 'easeOut' });
-  // reduced motion switches the effects off live, without a reload
-  G.matchMedia().add({ full: '(prefers-reduced-motion: no-preference)' }, ctx => { on = ctx.conditions.full; });
+const script = src => new Promise((ok, fail) => {
+  const s = document.createElement('script');
+  s.src = VENDOR + src; s.async = false; s.onload = ok; s.onerror = fail;
+  document.head.append(s);
+});
+export function init() {
+  if (G || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  script('gsap.min.js').then(() => script('Physics2DPlugin.min.js')).then(() => {
+    gsap = G = window.gsap;
+    G.registerPlugin(window.Physics2DPlugin);
+    G.defaults({ duration: 0.45, ease: 'power3.out' });
+    G.matchMedia().add({ full: '(prefers-reduced-motion: no-preference)' }, ctx => { on = ctx.conditions.full; document.documentElement.classList.toggle('fx', on); });
+  }).catch(() => {});
 }
-document.documentElement.classList.toggle('fx', on);
-document.documentElement.classList.remove('fx-pending'); // set inline in <head> so the splash doesn't flash before its intro
 
 const R = (a, b) => G.utils.random(a, b);
 let layer;
@@ -52,9 +59,9 @@ export function ring(el, color = '#22d3ee') {
   G.fromTo(p, { scale: 0.4, autoAlpha: 0.9 }, { scale: 2.2, autoAlpha: 0, duration: 0.6, onComplete: () => p.remove() });
 }
 
-export function shake(el, strength = 12) {
+export function shake(el, s = 12) {
   if (!on || !el) return;
-  G.fromTo(el, { x: 0 }, { x: strength, duration: 0.55, ease: 'shake', clearProps: 'x' });
+  G.to(el, { keyframes: { x: [0, -s, s, -s * 0.7, s * 0.7, -s * 0.4, s * 0.4, 0] }, duration: 0.5, ease: 'none', clearProps: 'x' });
 }
 
 export function flash(color = 'rgba(239,68,68,.45)') {
@@ -71,14 +78,12 @@ export function coinsTo(fromEl, toEl, count = 12) {
   return new Promise(done => {
     for (let i = 0; i < count; i++) {
       const p = particle('fx-coin', x0 + R(-60, 60), y0 + R(-10, 10), I.coin);
-      const sx = G.getProperty(p, 'x'), sy = G.getProperty(p, 'y');
+      const d = R(0.65, 0.85);
+      // x and y on different eases bend the path into an arc (no MotionPath plugin needed)
       G.timeline({ delay: i * 0.045, onComplete: () => { p.remove(); if (i === 0) done(); if (i === count - 1) bump(toEl); } })
         .from(p, { scale: 0, duration: 0.18, ease: 'back.out(3)' })
-        .to(p, {
-          duration: R(0.65, 0.85), ease: 'power2.in',
-          motionPath: { path: [{ x: sx, y: sy }, { x: (sx + x1) / 2 + R(-90, 90), y: Math.min(sy, y1) - R(60, 160) }, { x: x1, y: y1 }], curviness: 1.4 },
-          rotation: R(-360, 360), scale: 0.6,
-        });
+        .to(p, { x: x1, duration: d, ease: 'power2.out', rotation: R(-360, 360), scale: 0.6 })
+        .to(p, { y: y1, duration: d, ease: 'back.in(2.2)' }, '<');
     }
   });
 }
@@ -131,25 +136,11 @@ export function enter(targets, vars = {}) {
   if (els.length) G.from(els, { y: 18, autoAlpha: 0, duration: 0.45, stagger: 0.06, clearProps: 'transform,opacity,visibility', ...vars });
 }
 
-let intro;
-export function splashIn(root) {
-  if (!on) return;
-  intro = G.timeline({ defaults: { ease: 'power3.out' } })
-    .from(root.querySelector('.mark'), { scale: 0, rotation: -200, duration: 0.8, ease: 'back.out(1.6)' })
-    .from(root.querySelectorAll('.brand b, .brand small'), { x: -30, autoAlpha: 0, stagger: 0.08 }, '-=0.45')
-    .from(root.querySelector('h1'), { y: 30, autoAlpha: 0, duration: 0.6 }, '-=0.25')
-    .from(root.querySelector('p'), { y: 20, autoAlpha: 0 }, '-=0.35')
-    .from(root.querySelector('#splashAct'), { y: 20, autoAlpha: 0 }, '-=0.3')
-    .from(root.querySelector('.deco'), { x: 160, y: 160, rotation: 25, autoAlpha: 0, duration: 1.1, ease: 'expo.out' }, 0.2);
-}
-
 export function splashOut(root, done) {
   if (!on) return done();
-  intro?.kill(); // a returning player may skip the intro halfway
   G.timeline({ onComplete: done })
     .to(root.querySelector('.deco'), { x: 260, y: -420, rotation: -20, duration: 0.6, ease: 'power3.in' })
     .to(root.querySelectorAll('.brand, h1, p, #splashAct'), { y: -24, autoAlpha: 0, stagger: 0.04, duration: 0.3, ease: 'power2.in' }, 0)
     .to(root, { autoAlpha: 0, duration: 0.35 }, 0.3);
 }
 
-export const gsap = G;

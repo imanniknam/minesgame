@@ -7,14 +7,13 @@
 <title>Plus Games</title>
 <!-- self-hosted copy of https://telegram.org/js/telegram-web-app.js: telegram.org is filtered in some countries
      (e.g. Iran) even when the Telegram app itself works through a proxy, which left players stuck outside the app -->
-<script src="telegram-web-app.js"></script>
-<!-- GSAP, self-hosted for the same reason; fx.js turns every effect into a no-op if it fails to load -->
-<script>document.documentElement.classList.add('fx-pending'); setTimeout(function () { document.documentElement.classList.remove('fx-pending'); }, 3000);</script>
-<script defer src="vendor/gsap/gsap.min.js"></script>
-<script defer src="vendor/gsap/Physics2DPlugin.min.js"></script>
-<script defer src="vendor/gsap/MotionPathPlugin.min.js"></script>
-<script defer src="vendor/gsap/CustomEase.min.js"></script>
-<script defer src="vendor/gsap/CustomWiggle.min.js"></script>
+<script defer src="telegram-web-app.js"></script>
+<!-- fetch every module at once instead of one import level per round trip (each costs ~1s on slow networks) -->
+<link rel="modulepreload" href="app.js">
+<link rel="modulepreload" href="core.js">
+<link rel="modulepreload" href="fx.js">
+<link rel="modulepreload" href="icons.js">
+<link rel="modulepreload" href="games/mines.js">
 <link rel="preload" href="fonts/poppins-700.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/russo-one-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">

@@ -67,20 +67,18 @@ export default function mount(root, { initial, refresh, resync }) {
       <div class="mboard"><div class="mgrid ${g ? '' : 'idle'}">${cells}</div></div>
       <div class="console">
         <div class="ctl-row">
-          <div class="ctl"><span class="ctl-label"><span class="mini">${BOMB}</span>Mines</span>
-            <div class="ctl-box"><b>${cfg.mines}</b><small>in ${cfg.cells} tiles</small></div></div>
-          <div class="ctl"><span class="ctl-label c">${I.stack}Bet amount</span>
-            <div class="ctl-box">
-              <button type="button" class="step-btn" data-step="-1" aria-label="Lower bet" ${betLocked || i <= 0 ? 'disabled' : ''}>${I.minus}</button>
-              <output aria-live="polite">${S.bet}</output>
-              <button type="button" class="step-btn" data-step="1" aria-label="Raise bet" ${betLocked || i >= bets.length - 1 ? 'disabled' : ''}>${I.plus}</button></div></div>
+          <div class="ctl-box bet"><span class="lbl">${I.stack}Bet</span>
+            <button type="button" class="step-btn" data-step="-1" aria-label="Lower bet" ${betLocked || i <= 0 ? 'disabled' : ''}>${I.minus}</button>
+            <output aria-live="polite" aria-label="Bet amount">${S.bet}</output>
+            <button type="button" class="step-btn" data-step="1" aria-label="Raise bet" ${betLocked || i >= bets.length - 1 ? 'disabled' : ''}>${I.plus}</button></div>
+          <div class="ctl-box mines" aria-label="${cfg.mines} mines in ${cfg.cells} tiles"><span class="mini">${BOMB}</span><b>${cfg.mines}</b><small>/ ${cfg.cells}</small></div>
         </div>
         <div aria-live="polite">${panel(active)}</div>
         <div class="pips" aria-label="${k} of ${SAFE} safe tiles">${Array.from({ length: SAFE }, (_, j) => `<i class="pip ${j < k || (over && j < g.safe) ? 'done' : ''} ${active && j === k ? 'next' : ''}"></i>`).join('')}</div>
-        <button type="button" class="play ${cta[1]} ${act.busy ? 'busy' : ''}" data-cta ${cta[2] ? 'disabled' : ''}>${cta[0]}</button>
-        <div class="ctl-row">
-          <button type="button" class="ghost-btn" data-random ${!active || act.busy ? 'disabled' : ''}>${I.dice}Random tile</button>
-          <button type="button" class="ghost-btn" data-fair>${I.shield}Provably fair</button>
+        <div class="act-row">
+          <button type="button" class="icon-btn" data-random aria-label="Open a random tile" ${!active || act.busy ? 'disabled' : ''}>${I.dice}</button>
+          <button type="button" class="play ${cta[1]} ${act.busy ? 'busy' : ''}" data-cta ${cta[2] ? 'disabled' : ''}>${cta[0]}</button>
+          <button type="button" class="icon-btn" data-fair aria-label="Provably fair">${I.shield}</button>
         </div>
       </div>
       ${sheetHtml()}`;
