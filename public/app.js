@@ -175,7 +175,7 @@ const RENDER = {
   async history() {
     $('#screen').innerHTML = `
       <div class="sec-title" style="margin-top:4px">Game History</div>
-      <div class="filters">${['', ...Object.keys(GAMES)].map(f => `<button type="button" class="pill ${histFilter === f ? 'on' : ''}" data-filter="${f}">${f ? GAMES[f].name : 'All'}</button>`).join('')}</div>
+      ${Object.keys(GAMES).length > 1 ? `<div class="filters">${['', ...Object.keys(GAMES)].map(f => `<button type="button" class="pill ${histFilter === f ? 'on' : ''}" data-filter="${f}">${f ? GAMES[f].name : 'All'}</button>`).join('')}</div>` : ''}
       <ul class="list" data-list><li class="empty">Loading…</li></ul>`;
     try {
       const { games } = await api('/history' + (histFilter ? `?game=${histFilter}` : ''));
