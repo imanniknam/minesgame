@@ -1,13 +1,25 @@
 import express from 'express';
 import { getDb } from './lib/db.js';
 import { verifyInitData } from './lib/telegram.js';
-import { BETS, CENTS, HttpError, getActive } from './lib/core.js';
+import { BETS, CENTS, HttpError, getActive, settle, tickers } from './lib/core.js';
 import * as mines from './lib/games/mines.js';
 import * as crash from './lib/games/crash.js';
 import * as roulette from './lib/games/roulette.js';
 import * as poop from './lib/games/poop.js';
 
-const GAMES = { mines, crash, roulette, poop };
+const ALL = { mines, crash, roulette, poop };
+// Only Mines is offered for now. The other games stay in the code, switched off: ENABLED_GAMES=mines,crash,roulette,poop brings them back.
+const ENABLED = (process.env.ENABLED_GAMES || 'mines').split(',').filter(id => Object.hasOwn(ALL, id));
+const GAMES = Object.fromEntries(ENABLED.map(id => [id, ALL[id]]));
+
+// A round a player left open in a switched-off game would block Mines ("finish your round first") with no screen to finish it.
+// Close it on first touch instead: cash out at its current value (crash: the live multiplier), or refund the bet if nothing was won yet.
+for (const id of Object.keys(ALL).filter(id => !GAMES[id])) {
+  const own = tickers[id];
+  tickers[id] = async (q, g) => (await own?.(q, g)) || settle(q, g, {
+    won: true, multX100: id === 'crash' ? crash.multAt(Date.now() - g.data.startsAt) : g.mult_x100 || 100,
+  });
+}
 const { BOT_TOKEN, WEBHOOK_SECRET, APP_URL, BOT_USERNAME } = process.env;
 const DEV_AUTH = process.env.ALLOW_DEV_AUTH === '1' && !process.env.VERCEL; // never on the deployed app
 const START_BALANCE = 1000 * CENTS;
@@ -15,7 +27,7 @@ const DAILY_BONUS = 100 * CENTS;
 const REFERRAL_BONUS = 200 * CENTS;
 const BONUS_EVERY_MS = 24 * 3600 * 1000;
 
-const view = g => g && GAMES[g.game].view(g);
+const view = g => g && ALL[g.game].view(g);
 
 const app = express();
 app.disable('x-powered-by');
@@ -99,8 +111,8 @@ api.get('/history', async (req, res) => {
   const game = req.query.game || undefined;
   if (game !== undefined && !(typeof game === 'string' && Object.hasOwn(GAMES, game))) throw new HttpError(400, 'Unknown game');
   const { rows } = await req.db.query(
-    `SELECT * FROM games WHERE user_id=$1 AND status <> 'active' AND ($2::text IS NULL OR game = $2)
-     ORDER BY id DESC LIMIT 10`, [req.uid, game ?? null]);
+    `SELECT * FROM games WHERE user_id=$1 AND status <> 'active' AND ($2::text IS NULL OR game = $2) AND game = ANY($3)
+     ORDER BY id DESC LIMIT 10`, [req.uid, game ?? null, ENABLED]);
   res.json({ games: rows.map(view) });
 });
 
@@ -118,15 +130,15 @@ api.get('/profile', async (req, res) => {
     `SELECT COUNT(*) AS rounds, COUNT(*) FILTER (WHERE status='cashed') AS wins,
        COALESCE(SUM(payout - bet), 0) AS net, COALESCE(SUM(bet), 0) AS wagered,
        COALESCE(MAX(mult_x100) FILTER (WHERE status='cashed'), 0) AS best
-     FROM games WHERE user_id=$1 AND status <> 'active'`, [req.uid]);
+     FROM games WHERE user_id=$1 AND status <> 'active' AND game = ANY($2)`, [req.uid, ENABLED]);
   res.json({ rounds: Number(s.rounds), wins: Number(s.wins), net: Number(s.net) / CENTS, xp: Number(s.wagered) / CENTS, best: Number(s.best) / 100 });
 });
 
 api.get('/leaderboard', async (req, res) => {
   const { rows } = await req.db.query(
     `SELECT u.id, u.first_name AS name, SUM(g.payout - g.bet) AS profit, COUNT(*) AS games
-     FROM games g JOIN users u ON u.id = g.user_id WHERE g.status <> 'active'
-     GROUP BY u.id ORDER BY profit DESC LIMIT 10`);
+     FROM games g JOIN users u ON u.id = g.user_id WHERE g.status <> 'active' AND g.game = ANY($1)
+     GROUP BY u.id ORDER BY profit DESC LIMIT 10`, [ENABLED]);
   res.json({ top: rows.map(r => ({ name: r.name || 'Player', profit: Number(r.profit) / CENTS, games: Number(r.games), me: Number(r.id) === req.uid })) });
 });
 
@@ -139,6 +151,7 @@ const tgSend = body => fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessa
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(4000),
 }).catch(e => console.error('sendMessage failed', e));
 
+const BOT_BUTTONS = { mines: '💣 Mines', crash: '🚀 Crash', roulette: '🎡 Roulette', poop: '💩 Poop' };
 const appLink = game => `${APP_URL}${game ? `${APP_URL.includes('?') ? '&' : '?'}game=${game}` : ''}`;
 
 app.post('/bot', async (req, res) => {
@@ -148,13 +161,15 @@ app.post('/bot', async (req, res) => {
     // /start ref_<id>: Telegram is the trusted source of who invited whom (webhook is secret-checked)
     const ref = /^\/start ref_(-?\d{1,15})$/.exec(msg.text.trim())?.[1];
     if (ref) await getDb().then(db => db.tx(q => ensureUser(q, msg.from, Number(ref)))).catch(e => console.error('referral', e));
+    const buttons = ENABLED.map(id => ({ text: BOT_BUTTONS[id], web_app: { url: appLink(id) } }));
     await tgSend({
       chat_id: msg.chat.id,
-      text: '🎮 Plus Games — 4 quick games, one wallet.\n\nYou start with 1,000 free coins. Pick a game:',
+      text: ENABLED.join() === 'mines'
+        ? `💣 Mines — open safe tiles, dodge the bombs, cash out any time.\n\nYou start with 1,000 free coins.`
+        : `🎮 Plus Games — ${ENABLED.length} quick games, one wallet.\n\nYou start with 1,000 free coins. Pick a game:`,
       reply_markup: { inline_keyboard: [
-        [{ text: '💣 Mines', web_app: { url: appLink('mines') } }, { text: '🚀 Crash', web_app: { url: appLink('crash') } }],
-        [{ text: '🎡 Roulette', web_app: { url: appLink('roulette') } }, { text: '💩 Poop', web_app: { url: appLink('poop') } }],
-        [{ text: '🏠 Open lobby', web_app: { url: appLink() } }],
+        ...Array.from({ length: Math.ceil(buttons.length / 2) }, (_, i) => buttons.slice(i * 2, i * 2 + 2)),
+        ...(ENABLED.length > 1 ? [[{ text: '🏠 Open lobby', web_app: { url: appLink() } }]] : []),
       ] },
     });
   }

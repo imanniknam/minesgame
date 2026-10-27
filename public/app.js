@@ -4,12 +4,18 @@ import crash from './games/crash.js';
 import roulette from './games/roulette.js';
 import poop from './games/poop.js';
 
-const GAMES = {
-  mines: { mount: mines, icon: '💎', name: 'Mines', title: 'Mines', sub: 'Find safe tiles. Avoid the mines.', tag: 'Risk & Strategy', max: '34.20x' },
-  crash: { mount: crash, icon: '🚀', name: 'Crash', title: 'Crash', sub: 'Cash out before it blows!', tag: 'High Multiplier', max: '1000x' },
-  roulette: { mount: roulette, icon: '🎡', name: 'Roulette', title: 'European Roulette', sub: 'Place your bet and spin the wheel.', tag: 'Classic & Elegant', max: '36x' },
-  poop: { mount: poop, icon: '💩', name: 'Poop', title: 'Poop', sub: 'The luckiest little poop!', tag: 'Fun & Crazy', max: '30.40x' },
+const ALL_GAMES = {
+  mines: { mount: mines, icon: '💎', name: 'Mines', title: 'Mines', sub: 'Find safe tiles. Avoid the mines.', tag: 'Risk & Strategy', max: '34.20x',
+    help: '💎 <b>Mines</b> — 3×3 board, 2 bombs. Each safe tile raises the multiplier; cash out any time.' },
+  crash: { mount: crash, icon: '🚀', name: 'Crash', title: 'Crash', sub: 'Cash out before it blows!', tag: 'High Multiplier', max: '1000x',
+    help: '🚀 <b>Crash</b> — the multiplier climbs from 1.00x. Cash out before it crashes, or set auto cash-out.' },
+  roulette: { mount: roulette, icon: '🎡', name: 'Roulette', title: 'European Roulette', sub: 'Place your bet and spin the wheel.', tag: 'Classic & Elegant', max: '36x',
+    help: '🎡 <b>Roulette</b> — red/black or odd/even pay 2x, a single number pays 36x. Zero loses outside bets.' },
+  poop: { mount: poop, icon: '💩', name: 'Poop', title: 'Poop', sub: 'The luckiest little poop!', tag: 'Fun & Crazy', max: '30.40x',
+    help: '💩 <b>Poop</b> — pick 💩 or 😂, 50/50 per stage, up to 5 stages (30.40x).' },
 };
+// The games the server has switched on (config.games); the rest stay hidden. Filled in by loadState().
+const GAMES = {};
 const isGame = k => typeof k === 'string' && Object.hasOwn(GAMES, k);
 const RLABEL = { red: '🔴 Red', black: '⚫ Black', odd: 'Odd', even: 'Even' };
 const KIND = { signup: ['🎉', 'Welcome bonus'], bonus: ['🎁', 'Daily bonus'], referral: ['🤝', 'Friend joined'] };
@@ -25,6 +31,8 @@ const level = xp => {
 async function loadState() {
   const s = await api('/state');
   S.user = { ...s.user, balance: S.user?.balance ?? null }; S.config = s.config;
+  for (const id of Object.keys(GAMES)) delete GAMES[id];
+  for (const id of Object.keys(ALL_GAMES)) if (s.config.games[id]) GAMES[id] = ALL_GAMES[id];
   activeGame = s.game;
   setBalance(s.user.balance);
   return s;
@@ -52,7 +60,7 @@ function go(to) {
 const back = () => { haptic('impactOccurred', 'light'); const to = screen === 'top' ? 'profile' : 'home'; loadState().catch(() => {}).finally(() => go(to)); };
 $('#back').onclick = back;
 tg?.BackButton?.onClick(back);
-addEventListener('active-game', e => setTimeout(() => loadState().catch(() => {}).finally(() => go(e.detail)), 900));
+addEventListener('active-game', e => isGame(e.detail) && setTimeout(() => loadState().catch(() => {}).finally(() => go(e.detail)), 900));
 $('#nav').onclick = e => {
   const b = e.target.closest('[data-nav]');
   if (!b || !S.user) return;
@@ -77,13 +85,13 @@ async function claimBonus() {
 function invite() {
   if (!S.config.bot) return toast('Invites are not available yet');
   const link = `https://t.me/${S.config.bot}?start=ref_${S.user.id}`;
-  const share = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('🎮 Play Mines, Crash, Roulette & Poop with free coins!')}`;
+  const share = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(`🎮 Play ${Object.values(GAMES).map(m => m.name).join(', ')} with free coins!`)}`;
   if (tg?.openTelegramLink) tg.openTelegramLink(share);
   else navigator.clipboard?.writeText(link).then(() => toast('Invite link copied'));
 }
 
 function gameRow(g) {
-  const m = GAMES[g.game];
+  const m = ALL_GAMES[g.game];
   const detail = g.game === 'mines' ? `${g.safe} 💎 · ${g.multiplier.toFixed(2)}x`
     : g.game === 'poop' ? `${g.stage}/5 stages${g.won ? ` · ${g.multiplier.toFixed(2)}x` : ''}`
     : g.game === 'crash' ? `crashed ${g.crash.toFixed(2)}x${g.won ? ` · out ${g.multiplier.toFixed(2)}x` : ''}`
@@ -108,7 +116,7 @@ const RENDER = {
         <button type="button" class="panel" data-act="top"><span class="ic">🏆</span>Leaderboard</button>
       </div>
       <div class="sec-title">Popular Games</div>
-      <div class="cards">${Object.entries(GAMES).map(([id, m]) => `
+      <div class="cards ${Object.keys(GAMES).length === 1 ? 'solo' : ''}">${Object.entries(GAMES).map(([id, m]) => `
         <button type="button" class="card c-${id}" data-go="${id}">
           <span class="max">up to ${m.max}</span>${activeGame?.game === id ? '<span class="badge">▶ Resume</span>' : ''}
           <div class="art">${m.icon}</div><div class="txt"><b>${m.name}</b><small>${m.tag}</small></div>
@@ -135,7 +143,7 @@ const RENDER = {
     try {
       const { items } = await api('/wallet');
       $('[data-list]').innerHTML = items.map(t => {
-        const [icon, label] = KIND[t.kind] ?? [GAMES[t.game]?.icon ?? '🎮', `${GAMES[t.game]?.name ?? 'Game'} · ${t.kind === 'win' ? 'win' : 'bet'}`];
+        const [icon, label] = KIND[t.kind] ?? [ALL_GAMES[t.game]?.icon ?? '🎮', `${ALL_GAMES[t.game]?.name ?? 'Game'} · ${t.kind === 'win' ? 'win' : 'bet'}`];
         return `<li class="row panel"><span class="gi c-${t.game ?? 'poop'}">${icon}</span>
           <div class="mid"><b>${label}</b><small>${ago(t.at)}</small></div>
           <div class="end"><span class="${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount)}</span><small>bal ${fmt(t.balance)}</small></div></li>`;
@@ -156,8 +164,8 @@ const RENDER = {
 
   async profile() {
     const sheet = {
-      fair: `<p>Every round's result is fixed by a secret seed <b>before</b> you play. You see its SHA-256 fingerprint up front; when the round ends the seed is revealed.</p><p>Open "Provably fair" under any game and tap <b>Verify</b>: your phone recomputes the bombs, crash point, wheel number or answers from the seed.</p>`,
-      help: `<p>💎 <b>Mines</b> — 3×3 board, 2 bombs. Each safe tile raises the multiplier; cash out any time.</p><p>🚀 <b>Crash</b> — the multiplier climbs from 1.00x. Cash out before it crashes, or set auto cash-out.</p><p>🎡 <b>Roulette</b> — red/black or odd/even pay 2x, a single number pays 36x. Zero loses outside bets.</p><p>💩 <b>Poop</b> — pick 💩 or 😂, 50/50 per stage, up to 5 stages (30.40x).</p><p>Bets are 10, 50 or 100 coins. Coins are virtual and have no cash value.</p>`,
+      fair: `<p>Every round's result is fixed by a secret seed <b>before</b> you play. You see its SHA-256 fingerprint up front; when the round ends the seed is revealed.</p><p>Open "Provably fair" under any game and tap <b>Verify</b>: your phone recomputes the result from the seed.</p>`,
+      help: `${Object.values(GAMES).map(m => `<p>${m.help}</p>`).join('')}<p>Bets are 10, 50 or 100 coins. Coins are virtual and have no cash value.</p>`,
     };
     const item = (k, icon, label) => `<button type="button" class="panel" data-sheet="${k}"><span>${icon}</span>${label}<span>${openSheet === k ? '⌄' : '›'}</span></button>
       ${openSheet === k ? `<div class="panel sheet" style="padding:4px 14px">${sheet[k]}</div>` : ''}`;

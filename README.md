@@ -2,6 +2,8 @@
 
 Four quick games in one Telegram bot, one wallet, one account: **💣 Mines · 🚀 Crash · 🎡 Roulette · 💩 Poop**. Virtual coins only.
 
+> **Currently only Mines is switched on.** The other games stay in the code; set `ENABLED_GAMES=mines,crash,roulette,poop` on Vercel to bring them back. A round a player left open in a switched-off game is closed on their next request (cashed out at its current value, or refunded), so it never blocks Mines.
+
 - **Bot:** [@Plusgames_bot](https://t.me/Plusgames_bot) → `/start` → pick a game (or the **Play** menu button for the lobby)
 - **App:** https://mines-tma.vercel.app (runs inside Telegram; outside it shows an "Open in Telegram" screen)
 

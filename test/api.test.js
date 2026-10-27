@@ -9,6 +9,7 @@ if (process.env.TEST_DATABASE_URL) process.env.DATABASE_URL = process.env.TEST_D
 process.env.BOT_TOKEN = '123:TEST';
 process.env.WEBHOOK_SECRET = 'hook';
 process.env.APP_URL = 'https://example.test/index.html';
+process.env.ENABLED_GAMES = 'mines,crash,roulette,poop'; // production shows Mines only; the suite still covers every game
 const { default: app } = await import('../server.js');
 const { verifyInitData } = await import('../lib/telegram.js');
 const mines = await import('../lib/games/mines.js');
