@@ -16,15 +16,16 @@
 <script defer src="vendor/gsap/CustomEase.min.js"></script>
 <script defer src="vendor/gsap/CustomWiggle.min.js"></script>
 <link rel="preload" href="fonts/poppins-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/russo-one-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top">
-  <button type="button" class="back" id="back" aria-label="Back to games" hidden>‹</button>
-  <span class="logo" aria-label="Plus Games">P+</span>
+  <button type="button" class="back" id="back" aria-label="Back to games" hidden><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <span class="brandmark" aria-label="Plus Games"><i>P+</i><b>PLUS</b></span>
   <div class="wallet" aria-live="polite">
-    <span class="coin">C</span><b id="balance">—</b>
-    <button type="button" class="plus" id="plus" aria-label="Get coins">+</button>
+    <svg class="ic coin-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="url(#coinG)"/><circle cx="12" cy="12" r="7.2" fill="none" stroke="#04263a" stroke-width="1.4" opacity=".35"/><path d="M15.2 8.9a4.3 4.3 0 1 0 0 6.2" fill="none" stroke="#04263a" stroke-width="2.2" stroke-linecap="round"/><defs><radialGradient id="coinG" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#cffafe"/><stop offset=".55" stop-color="#22d3ee"/><stop offset="1" stop-color="#0e7490"/></radialGradient></defs></svg><b id="balance">—</b>
+    <button type="button" class="plus" id="plus" aria-label="Get coins"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg></button>
   </div>
 </header>
 

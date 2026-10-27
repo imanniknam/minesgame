@@ -4,9 +4,10 @@ import crash from './games/crash.js';
 import roulette from './games/roulette.js';
 import poop from './games/poop.js';
 import * as fx from './fx.js';
+import { GEM, I } from './icons.js';
 
 const ALL_GAMES = {
-  mines: { mount: mines, icon: '💎', name: 'Mines', title: 'Mines', sub: 'Find safe tiles. Avoid the mines.', tag: 'Risk & Strategy', max: '34.20x',
+  mines: { mount: mines, icon: GEM, name: 'Mines', title: 'Mines', sub: 'Find safe tiles. Avoid the mines.', tag: 'Risk & Strategy', max: '34.20x',
     help: '💎 <b>Mines</b> — 3×3 board, 2 bombs. Each safe tile raises the multiplier; cash out any time.' },
   crash: { mount: crash, icon: '🚀', name: 'Crash', title: 'Crash', sub: 'Cash out before it blows!', tag: 'High Multiplier', max: '1000x',
     help: '🚀 <b>Crash</b> — the multiplier climbs from 1.00x. Cash out before it crashes, or set auto cash-out.' },
@@ -19,7 +20,7 @@ const ALL_GAMES = {
 const GAMES = {};
 const isGame = k => typeof k === 'string' && Object.hasOwn(GAMES, k);
 const RLABEL = { red: '🔴 Red', black: '⚫ Black', odd: 'Odd', even: 'Even' };
-const KIND = { signup: ['🎉', 'Welcome bonus'], bonus: ['🎁', 'Daily bonus'], referral: ['🤝', 'Friend joined'] };
+const KIND = { signup: [I.spark, 'Welcome bonus'], bonus: [I.gift, 'Daily bonus'], referral: [I.users, 'Friend joined'] };
 
 let screen = null, mounted = null, activeGame = null, histFilter = '', openSheet = '';
 
@@ -55,7 +56,8 @@ function go(to) {
     return fx.enter(root.querySelectorAll('.card'), { y: 40, scale: 0.85, rotation: -2, duration: 0.6, stagger: 0.08, ease: 'back.out(1.6)', delay: 0.12 });
   }
   const m = GAMES[to];
-  root.innerHTML = `<div class="ghead c-${to}"><h2>${m.title}</h2><p>${m.sub}</p></div><section class="game"></section>`;
+  root.innerHTML = `<div class="ghead c-${to}"><h2>${m.title}</h2><p>${m.sub}</p>${to === 'mines' ? `<span class="ghead-art">${GEM}</span>` : ''}
+    <button type="button" class="help" data-help aria-label="How to play">${I.help}</button></div><section class="game"></section>`;
   mounted = m.mount($('.game', root), {
     initial: activeGame?.game === to ? activeGame : null,
     refresh: () => { activeGame = null; },
@@ -116,16 +118,21 @@ const RENDER = {
       <div class="hello panel"><span class="avatar">${esc((S.user.name || 'P')[0].toUpperCase())}</span>
         <div><small>${greet},</small><b>${esc(S.user.name || 'Player')}!</b></div>
         <div class="lvl" data-lvl>Lv. …<i></i></div></div>
-      <div class="quick">
-        <button type="button" class="panel" data-act="bonus" ${bonusLeft() > 0 ? 'disabled' : ''}><span class="ic">🎁</span>Daily ${bonusLabel()}</button>
-        <button type="button" class="panel" data-act="invite"><span class="ic">🤝</span>Invite +${S.config.referralBonus}</button>
-        <button type="button" class="panel" data-act="top"><span class="ic">🏆</span>Leaderboard</button>
+      <div class="promo">
+        <div><small>Daily reward</small><b>Free coins<br>every day</b>
+          <button type="button" class="claim" data-act="bonus" ${bonusLeft() > 0 ? 'disabled' : ''}>${bonusLeft() > 0 ? `Next in ${bonusLabel()}` : `Claim +${S.config.dailyBonus}`}</button></div>
+        <span class="promo-art">${I.gift}</span>
       </div>
-      <div class="sec-title">Popular Games</div>
+      <div class="quick">
+        <button type="button" class="panel" data-act="invite">${I.users}<span>Invite <b>+${S.config.referralBonus}</b></span></button>
+        <button type="button" class="panel" data-act="top">${I.trophy}<span>Leaderboard</span></button>
+      </div>
+      <div class="sec-title">Featured Games</div>
       <div class="cards ${Object.keys(GAMES).length === 1 ? 'solo' : ''}">${Object.entries(GAMES).map(([id, m]) => `
         <button type="button" class="card c-${id}" data-go="${id}">
-          <span class="max">up to ${m.max}</span>${activeGame?.game === id ? '<span class="badge">▶ Resume</span>' : ''}
+          <span class="max">up to ${m.max}</span>${activeGame?.game === id ? '<span class="badge">Round in play</span>' : ''}
           <div class="art">${m.icon}</div><div class="txt"><b>${m.name}</b><small>${m.tag}</small></div>
+          <span class="go">${I.play}${activeGame?.game === id ? 'Resume' : 'Play now'}</span>
         </button>`).join('')}</div>
       <p class="foot">Virtual coins only — no real money. Every round is provably fair.</p>`;
     api('/profile').then(p => {
@@ -140,8 +147,8 @@ const RENDER = {
       <div class="balance-card panel neon"><small>Your balance</small>
         <div class="big">${COIN}<span>${fmt(S.user.balance)}</span></div>
         <div class="acts">
-          <button type="button" class="btn-green" data-act="bonus" ${bonusLeft() > 0 ? 'disabled' : ''}>🎁 Daily ${bonusLabel()}</button>
-          <button type="button" class="btn2" data-act="invite">🤝 Invite +${S.config.referralBonus}</button>
+          <button type="button" class="btn-green" data-act="bonus" ${bonusLeft() > 0 ? 'disabled' : ''}>${I.gift}Daily ${bonusLabel()}</button>
+          <button type="button" class="btn2" data-act="invite">${I.users}Invite +${S.config.referralBonus}</button>
         </div>
         <p class="note">Virtual coins only — no deposits or withdrawals.</p></div>
       <div class="sec-title">Transactions</div>
@@ -173,7 +180,7 @@ const RENDER = {
       fair: `<p>Every round's result is fixed by a secret seed <b>before</b> you play. You see its SHA-256 fingerprint up front; when the round ends the seed is revealed.</p><p>Open "Provably fair" under any game and tap <b>Verify</b>: your phone recomputes the result from the seed.</p>`,
       help: `${Object.values(GAMES).map(m => `<p>${m.help}</p>`).join('')}<p>Bets are 10, 50 or 100 coins. Coins are virtual and have no cash value.</p>`,
     };
-    const item = (k, icon, label) => `<button type="button" class="panel" data-sheet="${k}"><span>${icon}</span>${label}<span>${openSheet === k ? '⌄' : '›'}</span></button>
+    const item = (k, icon, label) => `<button type="button" class="panel" data-sheet="${k}" aria-expanded="${openSheet === k}"><span>${icon}</span>${label}<span class="chev">${I.chevron}</span></button>
       ${openSheet === k ? `<div class="panel sheet" style="padding:4px 14px">${sheet[k]}</div>` : ''}`;
     $('#screen').innerHTML = `
       <div class="sec-title" style="margin-top:4px">Profile</div>
@@ -182,10 +189,10 @@ const RENDER = {
           <div data-xp><span class="lv">Lv. …</span><div class="xpbar"><i style="width:0"></i></div></div></div></div>
       <div class="stats" data-stats>${['Rounds', 'Win rate', 'Net', 'Best'].map(l => `<div class="panel"><b>…</b><small>${l}</small></div>`).join('')}</div>
       <div class="menu">
-        <button type="button" class="panel" data-act="top"><span>🏆</span>Leaderboard<span>›</span></button>
-        <button type="button" class="panel" data-act="invite"><span>🤝</span>Invite friends · ${S.user.invited} joined<span>›</span></button>
-        ${item('fair', '🔒', 'Provably fair')}
-        ${item('help', '❓', 'How to play')}
+        <button type="button" class="panel" data-act="top"><span>${I.trophy}</span>Leaderboard<span>${I.chevron}</span></button>
+        <button type="button" class="panel" data-act="invite"><span>${I.users}</span>Invite friends · ${S.user.invited} joined<span>${I.chevron}</span></button>
+        ${item('fair', I.shield, 'Provably fair')}
+        ${item('help', I.help, 'How to play')}
       </div>`;
     try {
       const p = await api('/profile'), L = level(p.xp);
@@ -209,6 +216,7 @@ const RENDER = {
 };
 
 $('#screen').addEventListener('click', e => {
+  if (e.target.closest('[data-help]')) return dispatchEvent(new CustomEvent('game-help')); // the game opens its own sheet
   if (isGame(screen)) return; // game modules handle their own clicks
   const card = e.target.closest('[data-go]'), act = e.target.closest('[data-act]'), f = e.target.closest('[data-filter]'), sh = e.target.closest('[data-sheet]');
   if (card) { haptic('impactOccurred', 'light'); return go(card.dataset.go); }

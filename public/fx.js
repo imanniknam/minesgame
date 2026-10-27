@@ -1,6 +1,8 @@
 // Game-feel effects on GSAP (self-hosted in vendor/gsap: CDNs are filtered for some players).
 // Everything here is decoration: if GSAP failed to load, or the player prefers reduced motion,
 // every export is a no-op and the game works exactly the same.
+import { I } from './icons.js';
+
 const G = window.gsap;
 const plugins = [window.Physics2DPlugin, window.MotionPathPlugin, window.CustomEase, window.CustomWiggle];
 export let on = false;
@@ -68,7 +70,7 @@ export function coinsTo(fromEl, toEl, count = 12) {
   const [x0, y0] = center(fromEl), [x1, y1] = center(toEl);
   return new Promise(done => {
     for (let i = 0; i < count; i++) {
-      const p = particle('coin fx-coin', x0 + R(-60, 60), y0 + R(-10, 10), 'C');
+      const p = particle('fx-coin', x0 + R(-60, 60), y0 + R(-10, 10), I.coin);
       const sx = G.getProperty(p, 'x'), sy = G.getProperty(p, 'y');
       G.timeline({ delay: i * 0.045, onComplete: () => { p.remove(); if (i === 0) done(); if (i === count - 1) bump(toEl); } })
         .from(p, { scale: 0, duration: 0.18, ease: 'back.out(3)' })

@@ -1,5 +1,6 @@
 // Shared client plumbing. The client never decides outcomes or balances; it renders server answers.
 import * as fx from './fx.js';
+import { I } from './icons.js';
 export const tg = window.Telegram?.WebApp;
 export const $ = (sel, root = document) => root.querySelector(sel);
 // Signed launch data. Normally from the SDK; if the SDK failed to load, Telegram still passes it in the URL hash.
@@ -11,7 +12,7 @@ export const S = { user: null, config: null, bet: 10, serverOffset: 0 };
 
 export const haptic = (t, k) => { try { tg?.HapticFeedback?.[t]?.(k); } catch {} };
 export const rid = () => crypto.randomUUID?.() ?? `r${Date.now()}${Math.random().toString(36).slice(2)}`;
-export const COIN = '<span class="coin">C</span>';
+export const COIN = I.coin;
 export const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 export const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 export const serverNow = () => Date.now() + S.serverOffset;
