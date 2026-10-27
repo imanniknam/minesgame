@@ -79,6 +79,26 @@ test('one active round across games, and retried start (same rid) is not charged
   assert.equal(other.activeGame, 'mines');
 });
 
+test('mines: bet can change before the first tile (difference charged/refunded), not after', async () => {
+  const c = client();
+  const a = (await c('POST', '/mines/bet', { bet: 10, rid: 'rid-change-a' })).game;
+  const up = await c('POST', '/mines/bet', { bet: 100, rid: 'rid-change-b' });
+  assert.equal(up.game.id, a.id); assert.equal(up.game.bet, 100); assert.equal(up.balance, 900);
+  const replay = await c('POST', '/mines/bet', { bet: 10, rid: 'rid-change-a' }); // late retry of the first request
+  assert.equal(replay.game.bet, 100); assert.equal(await balance(c), 900);
+  const down = await c('POST', '/mines/bet', { bet: 50, rid: 'rid-change-c' });
+  assert.equal(down.game.bet, 50); assert.equal(down.balance, 950);
+  const same = await c('POST', '/mines/bet', { bet: 50 });
+  assert.equal(same.status, 409);
+  const r = await c('POST', '/mines/reveal', { cell: 0 });
+  if (r.game.status === 'active') {
+    assert.equal((await c('POST', '/mines/bet', { bet: 10 })).status, 409); // board is in play: bet is fixed
+    assert.equal((await c('POST', '/mines/cashout')).game.payout, 61); // 50 × 1.22x
+  } else assert.equal(r.game.bet, 50);
+  const w = await c('GET', '/wallet');
+  assert.deepEqual(w.items.filter(i => i.kind === 'bet' && i.game === 'mines').map(i => i.amount).reverse(), [-10, -90, 50]);
+});
+
 test('mines: no leak while active, parallel cash-outs pay once, seed reproduces board', async () => {
   const c = client();
   let g = (await c('POST', '/mines/bet', { bet: 100 })).game;

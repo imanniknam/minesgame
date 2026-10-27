@@ -289,7 +289,8 @@ await check('invariants: balance == Σ ledger, no negatives, exact payouts, one 
   for (const u of users) { assert.equal(Number(u.balance), Number(u.total), `user ${u.id}`); assert.ok(Number(u.low) >= 0); }
   assert.deepEqual(await q(`SELECT id FROM games WHERE user_id < 0 AND ((status='cashed' AND payout <> bet*mult_x100/100) OR (status='busted' AND payout<>0) OR (status<>'active' AND ended_at IS NULL))`), []);
   assert.deepEqual(await q(`SELECT g.id FROM games g WHERE g.user_id < 0 AND g.status='cashed' AND (SELECT COUNT(*) FROM ledger l WHERE l.game_id=g.id AND l.kind='win') <> 1`), []);
-  assert.deepEqual(await q(`SELECT g.id FROM games g WHERE g.user_id < 0 AND (SELECT COUNT(*) FROM ledger l WHERE l.game_id=g.id AND l.kind='bet') <> 1`), []);
+  // a Mines bet can be changed before the first tile, so a round may have several 'bet' rows; together they equal its bet
+  assert.deepEqual(await q(`SELECT g.id FROM games g WHERE g.user_id < 0 AND (SELECT COALESCE(SUM(l.amount),0) FROM ledger l WHERE l.game_id=g.id AND l.kind='bet') <> -g.bet`), []);
   assert.deepEqual(await q(`SELECT user_id FROM games WHERE user_id < 0 AND status='active' GROUP BY user_id HAVING COUNT(*)>1`), []);
 });
 for (const s of ['DELETE FROM ledger WHERE user_id < 0', 'DELETE FROM games WHERE user_id < 0', 'DELETE FROM users WHERE id < 0']) await db.query(s);

@@ -4,6 +4,7 @@ export default function mount(root, { initial, refresh, resync }) {
   const cfg = S.config.games.mines;
   let g = initial, pending = null, fresh = null; // pending: tile waiting on the server; fresh: tile just opened (animates once)
   const act = makeAct(render, async () => { g = await resync(); });
+  if (g?.status === 'active') S.bet = g.bet; // a resumed round shows its real bet, not the default chip
 
   function render() {
     const fairOpen = root.querySelector('.fair')?.open; // re-render must not collapse it
@@ -25,7 +26,7 @@ export default function mount(root, { initial, refresh, resync }) {
       <div class="ladder">${cfg.ladder.map((m, i) => `<div class="step ${i < k ? 'done' : ''} ${i === k ? 'next' : ''}"><small>${i + 1} 💎</small><b>${m.toFixed(2)}x</b></div>`).join('')}</div>
       <div class="status" aria-live="polite"><span>${status}</span></div>
       <div class="board panel neon"><div class="grid ${g ? '' : 'idle'}">${cells}</div></div>
-      ${betChips(active || act.busy)}
+      ${betChips((active && g.revealed.length) || act.busy)}
       <button type="button" class="cta ${cta[1]} ${act.busy ? 'busy' : ''}" data-cta ${cta[2] ? 'disabled' : ''}>${cta[0]}</button>
       ${fairBox(g)}`;
     if (fairOpen) root.querySelector('.fair').open = true;
@@ -35,7 +36,7 @@ export default function mount(root, { initial, refresh, resync }) {
     fresh = null;
   }
 
-  const after = r => { g = r.game; if (r.balance != null) setBalance(r.balance); if (g.status !== 'active') refresh(); };
+  const after = r => { g = r.game; if (r.balance != null) setBalance(r.balance); if (g.status === 'active') S.bet = g.bet; else refresh(); };
   root.addEventListener('click', e => {
     const cell = e.target.closest('[data-cell]');
     if (cell && !cell.disabled) {
@@ -52,7 +53,14 @@ export default function mount(root, { initial, refresh, resync }) {
       else { after(await api('/mines/bet', { bet: S.bet, rid: rid() })); haptic('impactOccurred', 'medium'); }
     });
   });
-  bindChips(root, render);
+  // before the first tile the bet can still change: the server re-prices the open round
+  bindChips(root, () => {
+    if (g?.status !== 'active' || S.bet === g.bet) return render();
+    const prev = g.bet;
+    act.run(async () => {
+      try { after(await api('/mines/bet', { bet: S.bet, rid: rid() })); } catch (e) { S.bet = prev; throw e; }
+    });
+  });
   bindFair(root, () => g);
   render();
   return { destroy() {} };

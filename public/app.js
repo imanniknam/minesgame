@@ -143,7 +143,7 @@ const RENDER = {
     try {
       const { items } = await api('/wallet');
       $('[data-list]').innerHTML = items.map(t => {
-        const [icon, label] = KIND[t.kind] ?? [ALL_GAMES[t.game]?.icon ?? '🎮', `${ALL_GAMES[t.game]?.name ?? 'Game'} · ${t.kind === 'win' ? 'win' : 'bet'}`];
+        const [icon, label] = KIND[t.kind] ?? [ALL_GAMES[t.game]?.icon ?? '🎮', `${ALL_GAMES[t.game]?.name ?? 'Game'} · ${t.kind === 'win' ? 'win' : t.amount > 0 ? 'bet lowered' : 'bet'}`];
         return `<li class="row panel"><span class="gi c-${t.game ?? 'poop'}">${icon}</span>
           <div class="mid"><b>${label}</b><small>${ago(t.at)}</small></div>
           <div class="end"><span class="${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount)}</span><small>bal ${fmt(t.balance)}</small></div></li>`;
